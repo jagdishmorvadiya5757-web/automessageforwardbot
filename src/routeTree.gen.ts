@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
 import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
 import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
 import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
@@ -42,6 +43,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppLogsRoute = AuthenticatedAppLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const ApiPublicWorkerRulesRoute = ApiPublicWorkerRulesRouteImport.update({
   id: '/api/public/worker/rules',
   path: '/api/public/worker/rules',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
@@ -82,6 +90,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
@@ -93,6 +102,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/app'
+    | '/app/logs'
     | '/app/'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/logs'
@@ -101,6 +111,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/app/logs'
     | '/app'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/logs'
@@ -111,6 +122,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/app'
+    | '/_authenticated/app/logs'
     | '/_authenticated/app/'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/logs'
@@ -163,6 +175,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/logs': {
+      id: '/_authenticated/app/logs'
+      path: '/logs'
+      fullPath: '/app/logs'
+      preLoaderRoute: typeof AuthenticatedAppLogsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/api/public/worker/rules': {
       id: '/api/public/worker/rules'
       path: '/api/public/worker/rules'
@@ -188,10 +207,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 
