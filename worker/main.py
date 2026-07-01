@@ -1,11 +1,10 @@
 import asyncio
 import os
-import time
 
 import httpx
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.errors import RPCError
+from telethon.errors import RPCError, SessionPasswordNeededError
 
 load_dotenv()
 
@@ -14,6 +13,7 @@ WORKER_TOKEN = os.environ["WORKER_TOKEN"]
 TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
+LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
 
@@ -22,11 +22,37 @@ http = httpx.AsyncClient(timeout=30)
 
 # In-memory rule cache: { source_key: [rules] }
 rules_by_source: dict[str, list[dict]] = {}
+# Telegram login bookkeeping
+login_ctx: dict = {"phone": None, "phone_code_hash": None}
+forwarding_started = False
 
 
 def normalize(entity: str) -> str:
-    """Normalize a source identifier for matching."""
     return str(entity).strip().lstrip("@").lower()
+
+
+# ---------------------------------------------------------------------------
+# Dashboard sync helpers
+# ---------------------------------------------------------------------------
+async def get_login_state() -> dict:
+    try:
+        r = await http.get(f"{API_BASE_URL}/api/public/worker/login-state", headers=HEADERS)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        print(f"[login] state fetch failed: {e}")
+        return {}
+
+
+async def post_login_status(status: str, detail: str | None = None, pending_action=None):
+    try:
+        await http.post(
+            f"{API_BASE_URL}/api/public/worker/login-status",
+            headers=HEADERS,
+            json={"status": status, "detail": detail, "pending_action": pending_action},
+        )
+    except Exception as e:
+        print(f"[login] status post failed: {e}")
 
 
 async def fetch_rules() -> list[dict]:
@@ -50,6 +76,19 @@ async def post_log(rule_id, status, detail, ref=None):
         print(f"[log] post failed: {e}")
 
 
+async def push_channels(channels: list[dict]):
+    try:
+        r = await http.post(
+            f"{API_BASE_URL}/api/public/worker/channels",
+            headers=HEADERS,
+            json={"channels": channels},
+        )
+        r.raise_for_status()
+        print(f"[channels] pushed {len(channels)} chat(s)")
+    except Exception as e:
+        print(f"[channels] push failed: {e}")
+
+
 async def heartbeat():
     while True:
         try:
@@ -59,6 +98,117 @@ async def heartbeat():
         await asyncio.sleep(60)
 
 
+# ---------------------------------------------------------------------------
+# Telegram login state machine (driven by the dashboard)
+# ---------------------------------------------------------------------------
+async def sync_channels():
+    channels = []
+    async for dialog in client.iter_dialogs():
+        entity = dialog.entity
+        if dialog.is_channel:
+            broadcast = getattr(entity, "broadcast", False)
+            kind = "channel" if broadcast else "group"
+            can_post = (not broadcast) or bool(getattr(entity, "admin_rights", None)) or bool(getattr(entity, "creator", False))
+        elif dialog.is_group:
+            kind, can_post = "group", True
+        elif getattr(entity, "bot", False):
+            kind, can_post = "bot", True
+        else:
+            continue  # skip private user chats
+        channels.append({
+            "chat_id": str(dialog.id),
+            "title": (dialog.name or "Untitled")[:256],
+            "username": getattr(entity, "username", None),
+            "kind": kind,
+            "can_post": can_post,
+        })
+    await push_channels(channels)
+
+
+async def handle_login(state: dict):
+    action = state.get("pending_action")
+    if not action:
+        return
+
+    if action == "request_code":
+        phone = state.get("phone")
+        if not phone:
+            await post_login_status("error", "No phone number provided")
+            return
+        try:
+            sent = await client.send_code_request(phone)
+            login_ctx["phone"] = phone
+            login_ctx["phone_code_hash"] = sent.phone_code_hash
+            await post_login_status("awaiting_code")
+            print("[login] code requested")
+        except Exception as e:
+            await post_login_status("error", str(e))
+
+    elif action == "submit_code":
+        code = state.get("code")
+        try:
+            await client.sign_in(
+                phone=login_ctx.get("phone") or state.get("phone"),
+                code=code,
+                phone_code_hash=login_ctx.get("phone_code_hash"),
+            )
+            await post_login_status("logged_in")
+            print("[login] signed in")
+            await sync_channels()
+        except SessionPasswordNeededError:
+            await post_login_status("password_needed")
+        except Exception as e:
+            await post_login_status("error", str(e))
+
+    elif action == "submit_password":
+        password = state.get("two_fa_password")
+        try:
+            await client.sign_in(password=password)
+            await post_login_status("logged_in")
+            print("[login] signed in with 2FA")
+            await sync_channels()
+        except Exception as e:
+            await post_login_status("error", str(e))
+
+    elif action == "logout":
+        try:
+            await client.log_out()
+        except Exception as e:
+            print(f"[login] logout error: {e}")
+        await post_login_status("logged_out")
+        print("[login] logged out")
+
+
+async def control_loop():
+    """Continuously reconcile Telegram session with the dashboard's requests."""
+    global forwarding_started
+    while True:
+        authorized = await client.is_user_authorized()
+        state = await get_login_state()
+
+        if not authorized:
+            await handle_login(state)
+        else:
+            action = state.get("pending_action")
+            if action == "logout":
+                await handle_login(state)
+            elif action == "sync_channels":
+                await post_login_status("logged_in")  # clears pending_action + secrets
+                await sync_channels()
+            elif state.get("status") != "logged_in":
+                await post_login_status("logged_in")
+
+            if not forwarding_started:
+                forwarding_started = True
+                asyncio.create_task(refresh_rules())
+                print("[worker] forwarding active")
+
+        await asyncio.sleep(LOGIN_POLL_INTERVAL)
+
+
+# ---------------------------------------------------------------------------
+# Forwarding
+# ---------------------------------------------------------------------------
 async def refresh_rules():
     global rules_by_source
     while True:
@@ -114,20 +264,16 @@ async def on_message(event):
             await client.send_message(entity, event.message)
             await post_log(rule["id"], "forwarded", f"to {dest}", str(event.message.id))
             print(f"[fwd] {rule['source']} -> {dest}")
-        except RPCError as e:
-            await post_log(rule["id"], "error", str(e), str(event.message.id))
-            print(f"[fwd] error: {e}")
-        except Exception as e:
+        except (RPCError, Exception) as e:
             await post_log(rule["id"], "error", str(e), str(event.message.id))
             print(f"[fwd] error: {e}")
 
 
 async def main():
-    await client.start()
-    print("[tg] logged in")
-    asyncio.create_task(refresh_rules())
+    await client.connect()
+    print(f"[worker] connected, syncing with {API_BASE_URL}")
     asyncio.create_task(heartbeat())
-    print(f"[worker] running, syncing with {API_BASE_URL}")
+    asyncio.create_task(control_loop())
     await client.run_until_disconnected()
 
 

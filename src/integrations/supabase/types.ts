@@ -118,6 +118,81 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_auth: {
+        Row: {
+          code: string | null
+          created_at: string
+          detail: string | null
+          id: string
+          pending_action: string | null
+          phone: string | null
+          status: string
+          two_fa_password: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          pending_action?: string | null
+          phone?: string | null
+          status?: string
+          two_fa_password?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          pending_action?: string | null
+          phone?: string | null
+          status?: string
+          two_fa_password?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_channels: {
+        Row: {
+          can_post: boolean
+          chat_id: string
+          created_at: string
+          id: string
+          kind: string
+          title: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          can_post?: boolean
+          chat_id: string
+          created_at?: string
+          id?: string
+          kind?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          can_post?: boolean
+          chat_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
