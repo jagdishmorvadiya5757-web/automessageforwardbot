@@ -9,38 +9,163 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
+import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
+import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
+import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
+import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppWorkerRoute = AuthenticatedAppWorkerRouteImport.update({
+  id: '/worker',
+  path: '/worker',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppLogsRoute = AuthenticatedAppLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const ApiPublicWorkerRulesRoute = ApiPublicWorkerRulesRouteImport.update({
+  id: '/api/public/worker/rules',
+  path: '/api/public/worker/rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkerLogsRoute = ApiPublicWorkerLogsRouteImport.update({
+  id: '/api/public/worker/logs',
+  path: '/api/public/worker/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkerHeartbeatRoute =
+  ApiPublicWorkerHeartbeatRouteImport.update({
+    id: '/api/public/worker/heartbeat',
+    path: '/api/public/worker/heartbeat',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/logs': typeof AuthenticatedAppLogsRoute
+  '/app/worker': typeof AuthenticatedAppWorkerRoute
+  '/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
+  '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
+  '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/app/logs': typeof AuthenticatedAppLogsRoute
+  '/app/worker': typeof AuthenticatedAppWorkerRoute
+  '/app': typeof AuthenticatedAppIndexRoute
+  '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
+  '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
+  '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
+  '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
+  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
+  '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
+  '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/app'
+    | '/app/logs'
+    | '/app/worker'
+    | '/app/'
+    | '/api/public/worker/heartbeat'
+    | '/api/public/worker/logs'
+    | '/api/public/worker/rules'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/app/logs'
+    | '/app/worker'
+    | '/app'
+    | '/api/public/worker/heartbeat'
+    | '/api/public/worker/logs'
+    | '/api/public/worker/rules'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/app'
+    | '/_authenticated/app/logs'
+    | '/_authenticated/app/worker'
+    | '/_authenticated/app/'
+    | '/api/public/worker/heartbeat'
+    | '/api/public/worker/logs'
+    | '/api/public/worker/rules'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ApiPublicWorkerHeartbeatRoute: typeof ApiPublicWorkerHeartbeatRoute
+  ApiPublicWorkerLogsRoute: typeof ApiPublicWorkerLogsRoute
+  ApiPublicWorkerRulesRoute: typeof ApiPublicWorkerRulesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +173,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/app': {
+      id: '/_authenticated/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/': {
+      id: '/_authenticated/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/worker': {
+      id: '/_authenticated/app/worker'
+      path: '/worker'
+      fullPath: '/app/worker'
+      preLoaderRoute: typeof AuthenticatedAppWorkerRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/logs': {
+      id: '/_authenticated/app/logs'
+      path: '/logs'
+      fullPath: '/app/logs'
+      preLoaderRoute: typeof AuthenticatedAppLogsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/api/public/worker/rules': {
+      id: '/api/public/worker/rules'
+      path: '/api/public/worker/rules'
+      fullPath: '/api/public/worker/rules'
+      preLoaderRoute: typeof ApiPublicWorkerRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/logs': {
+      id: '/api/public/worker/logs'
+      path: '/api/public/worker/logs'
+      fullPath: '/api/public/worker/logs'
+      preLoaderRoute: typeof ApiPublicWorkerLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/heartbeat': {
+      id: '/api/public/worker/heartbeat'
+      path: '/api/public/worker/heartbeat'
+      fullPath: '/api/public/worker/heartbeat'
+      preLoaderRoute: typeof ApiPublicWorkerHeartbeatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
+  AuthenticatedAppWorkerRoute: typeof AuthenticatedAppWorkerRoute
+  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+}
+
+const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
+  AuthenticatedAppWorkerRoute: AuthenticatedAppWorkerRoute,
+  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+}
+
+const AuthenticatedAppRouteWithChildren =
+  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ApiPublicWorkerHeartbeatRoute: ApiPublicWorkerHeartbeatRoute,
+  ApiPublicWorkerLogsRoute: ApiPublicWorkerLogsRoute,
+  ApiPublicWorkerRulesRoute: ApiPublicWorkerRulesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
