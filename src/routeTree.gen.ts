@@ -16,9 +16,14 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
 import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
+import { Route as AuthenticatedAppLoginRouteImport } from './routes/_authenticated/app.login'
+import { Route as AuthenticatedAppChannelsRouteImport } from './routes/_authenticated/app.channels'
 import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
 import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
+import { Route as ApiPublicWorkerLoginStatusRouteImport } from './routes/api/public/worker/login-status'
+import { Route as ApiPublicWorkerLoginStateRouteImport } from './routes/api/public/worker/login-state'
 import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
+import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -54,6 +59,17 @@ const AuthenticatedAppLogsRoute = AuthenticatedAppLogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppLoginRoute = AuthenticatedAppLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppChannelsRoute =
+  AuthenticatedAppChannelsRouteImport.update({
+    id: '/channels',
+    path: '/channels',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const ApiPublicWorkerRulesRoute = ApiPublicWorkerRulesRouteImport.update({
   id: '/api/public/worker/rules',
   path: '/api/public/worker/rules',
@@ -64,31 +80,58 @@ const ApiPublicWorkerLogsRoute = ApiPublicWorkerLogsRouteImport.update({
   path: '/api/public/worker/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWorkerLoginStatusRoute =
+  ApiPublicWorkerLoginStatusRouteImport.update({
+    id: '/api/public/worker/login-status',
+    path: '/api/public/worker/login-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWorkerLoginStateRoute =
+  ApiPublicWorkerLoginStateRouteImport.update({
+    id: '/api/public/worker/login-state',
+    path: '/api/public/worker/login-state',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkerHeartbeatRoute =
   ApiPublicWorkerHeartbeatRouteImport.update({
     id: '/api/public/worker/heartbeat',
     path: '/api/public/worker/heartbeat',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWorkerChannelsRoute = ApiPublicWorkerChannelsRouteImport.update({
+  id: '/api/public/worker/channels',
+  path: '/api/public/worker/channels',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/channels': typeof AuthenticatedAppChannelsRoute
+  '/app/login': typeof AuthenticatedAppLoginRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
+  '/api/public/worker/login-state': typeof ApiPublicWorkerLoginStateRoute
+  '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
   '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/app/channels': typeof AuthenticatedAppChannelsRoute
+  '/app/login': typeof AuthenticatedAppLoginRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
+  '/api/public/worker/login-state': typeof ApiPublicWorkerLoginStateRoute
+  '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
   '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
 }
@@ -98,10 +141,15 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/channels': typeof AuthenticatedAppChannelsRoute
+  '/_authenticated/app/login': typeof AuthenticatedAppLoginRoute
   '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
   '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
+  '/api/public/worker/login-state': typeof ApiPublicWorkerLoginStateRoute
+  '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
   '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
 }
@@ -111,20 +159,30 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/app'
+    | '/app/channels'
+    | '/app/login'
     | '/app/logs'
     | '/app/worker'
     | '/app/'
+    | '/api/public/worker/channels'
     | '/api/public/worker/heartbeat'
+    | '/api/public/worker/login-state'
+    | '/api/public/worker/login-status'
     | '/api/public/worker/logs'
     | '/api/public/worker/rules'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/app/channels'
+    | '/app/login'
     | '/app/logs'
     | '/app/worker'
     | '/app'
+    | '/api/public/worker/channels'
     | '/api/public/worker/heartbeat'
+    | '/api/public/worker/login-state'
+    | '/api/public/worker/login-status'
     | '/api/public/worker/logs'
     | '/api/public/worker/rules'
   id:
@@ -133,10 +191,15 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/app'
+    | '/_authenticated/app/channels'
+    | '/_authenticated/app/login'
     | '/_authenticated/app/logs'
     | '/_authenticated/app/worker'
     | '/_authenticated/app/'
+    | '/api/public/worker/channels'
     | '/api/public/worker/heartbeat'
+    | '/api/public/worker/login-state'
+    | '/api/public/worker/login-status'
     | '/api/public/worker/logs'
     | '/api/public/worker/rules'
   fileRoutesById: FileRoutesById
@@ -145,7 +208,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicWorkerChannelsRoute: typeof ApiPublicWorkerChannelsRoute
   ApiPublicWorkerHeartbeatRoute: typeof ApiPublicWorkerHeartbeatRoute
+  ApiPublicWorkerLoginStateRoute: typeof ApiPublicWorkerLoginStateRoute
+  ApiPublicWorkerLoginStatusRoute: typeof ApiPublicWorkerLoginStatusRoute
   ApiPublicWorkerLogsRoute: typeof ApiPublicWorkerLogsRoute
   ApiPublicWorkerRulesRoute: typeof ApiPublicWorkerRulesRoute
 }
@@ -201,6 +267,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLogsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/login': {
+      id: '/_authenticated/app/login'
+      path: '/login'
+      fullPath: '/app/login'
+      preLoaderRoute: typeof AuthenticatedAppLoginRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/channels': {
+      id: '/_authenticated/app/channels'
+      path: '/channels'
+      fullPath: '/app/channels'
+      preLoaderRoute: typeof AuthenticatedAppChannelsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/api/public/worker/rules': {
       id: '/api/public/worker/rules'
       path: '/api/public/worker/rules'
@@ -215,6 +295,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkerLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/worker/login-status': {
+      id: '/api/public/worker/login-status'
+      path: '/api/public/worker/login-status'
+      fullPath: '/api/public/worker/login-status'
+      preLoaderRoute: typeof ApiPublicWorkerLoginStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/login-state': {
+      id: '/api/public/worker/login-state'
+      path: '/api/public/worker/login-state'
+      fullPath: '/api/public/worker/login-state'
+      preLoaderRoute: typeof ApiPublicWorkerLoginStateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/worker/heartbeat': {
       id: '/api/public/worker/heartbeat'
       path: '/api/public/worker/heartbeat'
@@ -222,16 +316,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkerHeartbeatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/worker/channels': {
+      id: '/api/public/worker/channels'
+      path: '/api/public/worker/channels'
+      fullPath: '/api/public/worker/channels'
+      preLoaderRoute: typeof ApiPublicWorkerChannelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppChannelsRoute: typeof AuthenticatedAppChannelsRoute
+  AuthenticatedAppLoginRoute: typeof AuthenticatedAppLoginRoute
   AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
   AuthenticatedAppWorkerRoute: typeof AuthenticatedAppWorkerRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppChannelsRoute: AuthenticatedAppChannelsRoute,
+  AuthenticatedAppLoginRoute: AuthenticatedAppLoginRoute,
   AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
   AuthenticatedAppWorkerRoute: AuthenticatedAppWorkerRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
@@ -255,7 +360,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicWorkerChannelsRoute: ApiPublicWorkerChannelsRoute,
   ApiPublicWorkerHeartbeatRoute: ApiPublicWorkerHeartbeatRoute,
+  ApiPublicWorkerLoginStateRoute: ApiPublicWorkerLoginStateRoute,
+  ApiPublicWorkerLoginStatusRoute: ApiPublicWorkerLoginStatusRoute,
   ApiPublicWorkerLogsRoute: ApiPublicWorkerLogsRoute,
   ApiPublicWorkerRulesRoute: ApiPublicWorkerRulesRoute,
 }

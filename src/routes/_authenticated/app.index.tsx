@@ -31,6 +31,12 @@ type Rule = {
   include_keywords: string[];
   exclude_keywords: string[];
 };
+type Channel = {
+  chat_id: string;
+  title: string;
+  username: string | null;
+  kind: string;
+};
 
 export const Route = createFileRoute("/_authenticated/app/")({
   component: RulesPage,
@@ -63,6 +69,19 @@ function RulesPage() {
       return data as Rule[];
     },
   });
+
+  const { data: channels = [] } = useQuery({
+    queryKey: ["channels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("telegram_channels")
+        .select("chat_id, title, username, kind")
+        .order("title", { ascending: true });
+      if (error) throw error;
+      return data as Channel[];
+    },
+  });
+
 
   const save = useMutation({
     mutationFn: async () => {
@@ -161,20 +180,25 @@ function RulesPage() {
                 <Label>Name (optional)</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="News mirror" />
               </div>
-              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-                <div className="space-y-2">
-                  <Label>Source</Label>
-                  <Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="@channel or -100123..." />
-                </div>
-                <TypeSelect value={form.source_type} onChange={(v) => setForm({ ...form, source_type: v })} />
-              </div>
-              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-                <div className="space-y-2">
-                  <Label>Destination</Label>
-                  <Input value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="@mychannel or @mybot" />
-                </div>
-                <TypeSelect value={form.destination_type} onChange={(v) => setForm({ ...form, destination_type: v })} />
-              </div>
+              <EndpointPicker
+                label="Source"
+                channels={channels}
+                value={form.source}
+                type={form.source_type}
+                onValueChange={(v) => setForm({ ...form, source: v })}
+                onTypeChange={(v) => setForm({ ...form, source_type: v })}
+                placeholder="@channel or -100123..."
+              />
+              <EndpointPicker
+                label="Destination"
+                channels={channels}
+                value={form.destination}
+                type={form.destination_type}
+                onValueChange={(v) => setForm({ ...form, destination: v })}
+                onTypeChange={(v) => setForm({ ...form, destination_type: v })}
+                placeholder="@mychannel or @mybot"
+              />
+
               <div className="space-y-2">
                 <Label>Include keywords (optional, comma-separated)</Label>
                 <Input value={form.include_keywords} onChange={(e) => setForm({ ...form, include_keywords: e.target.value })} placeholder="bitcoin, launch" />
@@ -243,6 +267,75 @@ function RulesPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const MANUAL = "__manual__";
+
+function EndpointPicker({
+  label,
+  channels,
+  value,
+  type,
+  onValueChange,
+  onTypeChange,
+  placeholder,
+}: {
+  label: string;
+  channels: Channel[];
+  value: string;
+  type: EndpointType;
+  onValueChange: (v: string) => void;
+  onTypeChange: (v: EndpointType) => void;
+  placeholder: string;
+}) {
+  // Selected channel identifier matches a synced channel when its username/id equals value.
+  const match = channels.find((c) => (c.username ? `@${c.username}` : c.chat_id) === value);
+  const selectValue = match ? (match.username ? `@${match.username}` : match.chat_id) : value ? MANUAL : "";
+
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+      <div className="space-y-2">
+        <Label>{label}</Label>
+        {channels.length > 0 ? (
+          <Select
+            value={selectValue}
+            onValueChange={(v) => {
+              if (v === MANUAL) {
+                onValueChange("");
+                return;
+              }
+              const c = channels.find((ch) => (ch.username ? `@${ch.username}` : ch.chat_id) === v);
+              onValueChange(v);
+              if (c) onTypeChange(c.kind === "bot" ? "bot" : "channel");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Pick a channel" />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.map((c) => {
+                const id = c.username ? `@${c.username}` : c.chat_id;
+                return (
+                  <SelectItem key={id} value={id}>
+                    {c.title}
+                  </SelectItem>
+                );
+              })}
+              <SelectItem value={MANUAL}>Type manually…</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : null}
+        {(channels.length === 0 || selectValue === MANUAL) && (
+          <Input
+            value={value}
+            onChange={(e) => onValueChange(e.target.value)}
+            placeholder={placeholder}
+          />
+        )}
+      </div>
+      <TypeSelect value={type} onChange={onTypeChange} />
     </div>
   );
 }

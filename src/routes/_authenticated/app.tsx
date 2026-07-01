@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tansta
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Send, ListChecks, ScrollText, ServerCog, LogOut } from "lucide-react";
+import { Send, ListChecks, ScrollText, ServerCog, LogOut, Phone, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app")({
@@ -11,6 +11,8 @@ export const Route = createFileRoute("/_authenticated/app")({
 
 const nav = [
   { to: "/app", label: "Rules", icon: ListChecks, exact: true },
+  { to: "/app/login", label: "Telegram", icon: Phone, exact: false },
+  { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
   { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
 ];
