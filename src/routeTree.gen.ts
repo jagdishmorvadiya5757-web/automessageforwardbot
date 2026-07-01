@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
 import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
 import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
 import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
@@ -43,6 +44,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppWorkerRoute = AuthenticatedAppWorkerRouteImport.update({
+  id: '/worker',
+  path: '/worker',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppLogsRoute = AuthenticatedAppLogsRouteImport.update({
   id: '/logs',
   path: '/logs',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/logs': typeof AuthenticatedAppLogsRoute
+  '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
+  '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
+  '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app'
     | '/app/logs'
+    | '/app/worker'
     | '/app/'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/logs'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/app/logs'
+    | '/app/worker'
     | '/app'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/logs'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/app'
     | '/_authenticated/app/logs'
+    | '/_authenticated/app/worker'
     | '/_authenticated/app/'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/logs'
@@ -175,6 +187,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/worker': {
+      id: '/_authenticated/app/worker'
+      path: '/worker'
+      fullPath: '/app/worker'
+      preLoaderRoute: typeof AuthenticatedAppWorkerRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/logs': {
       id: '/_authenticated/app/logs'
       path: '/logs'
@@ -208,11 +227,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
+  AuthenticatedAppWorkerRoute: typeof AuthenticatedAppWorkerRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
+  AuthenticatedAppWorkerRoute: AuthenticatedAppWorkerRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 
