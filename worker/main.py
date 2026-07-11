@@ -4,7 +4,7 @@ import os
 import httpx
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.errors import RPCError, SessionPasswordNeededError
+from telethon.errors import FloodWaitError, RPCError, SessionPasswordNeededError
 
 load_dotenv()
 
@@ -14,9 +14,13 @@ TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
+# Delay (seconds) between two forwards. Keeps us under Telegram's flood limits.
+FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "5"))
+# Extra safety seconds added on top of Telegram's requested FloodWait.
+FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-counted-bot-filter-v3"
+WORKER_VERSION = "2026-07-11-slow-queue-v4"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -29,6 +33,9 @@ login_ctx: dict = {"phone": None, "phone_code_hash": None}
 forwarding_started = False
 # Own account id, filled after login. Used to skip messages YOU send.
 my_id: int | None = None
+# Serial forward queue. Every send goes through this so we can throttle and,
+# on a FloodWait, wait instead of dropping the message.
+forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
 
 
 def normalize(entity: str) -> str:
@@ -402,16 +409,51 @@ async def on_message(event):
             print(f"[limit] skipped {rule['source']}: {detail}")
             continue
 
+        # Queue the send instead of firing it inline. The forward_worker sends
+        # jobs one at a time with a delay, and on a FloodWait it waits and
+        # retries the SAME job so no message is ever dropped.
+        await forward_queue.put({
+            "rule_id": rule["id"],
+            "source": rule["source"],
+            "destination": rule["destination"],
+            "text": text,
+            "msg_ref": str(event.message.id),
+        })
+        print(f"[queue] {rule['source']} -> {rule['destination']} (size {forward_queue.qsize()})")
+
+
+async def forward_worker():
+    """Serial sender: one message at a time, throttled, retried on FloodWait."""
+    print(f"[queue] worker started (delay {FORWARD_DELAY}s)")
+    while True:
+        job = await forward_queue.get()
+        dest = job["destination"]
         try:
-            dest = rule["destination"]
             entity = dest if dest.startswith("@") else int(dest) if dest.lstrip("-").isdigit() else dest
-            await client.send_message(entity, text)
-            await post_log(rule["id"], "forwarded", f"to {dest}", str(event.message.id))
-            print(f"[fwd] {rule['source']} -> {dest}")
-        except (RPCError, Exception) as e:
-            await release_forwarding_slot(rule["id"])
-            await post_log(rule["id"], "error", str(e), str(event.message.id))
-            print(f"[fwd] error: {e}")
+        except Exception:
+            entity = dest
+
+        while True:
+            try:
+                await client.send_message(entity, job["text"])
+                await post_log(job["rule_id"], "forwarded", f"to {dest}", job["msg_ref"])
+                print(f"[fwd] {job['source']} -> {dest}")
+                break
+            except FloodWaitError as e:
+                wait = float(getattr(e, "seconds", 0)) + FLOOD_WAIT_EXTRA
+                await post_log(job["rule_id"], "waiting", f"flood limit, retry in {int(wait)}s", job["msg_ref"])
+                print(f"[wait] flood limit hit, sleeping {int(wait)}s before retry")
+                await asyncio.sleep(wait)
+                # loop again to retry the same job — message is NOT dropped
+            except (RPCError, Exception) as e:
+                await release_forwarding_slot(job["rule_id"])
+                await post_log(job["rule_id"], "error", str(e), job["msg_ref"])
+                print(f"[fwd] error: {e}")
+                break
+
+        forward_queue.task_done()
+        # Throttle between sends to stay under Telegram's flood limits.
+        await asyncio.sleep(FORWARD_DELAY)
 
 
 async def main():
@@ -420,6 +462,7 @@ async def main():
     print(f"[worker] connected, syncing with {API_BASE_URL}")
     asyncio.create_task(heartbeat())
     asyncio.create_task(control_loop())
+    asyncio.create_task(forward_worker())
     # Stay alive without calling run_until_disconnected(), which would issue an
     # authenticated request and crash before the account is logged in. The
     # control loop drives login from the dashboard; once authorized, Telethon
