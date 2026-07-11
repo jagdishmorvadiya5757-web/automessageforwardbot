@@ -59,6 +59,7 @@ export type Database = {
           destination_type: Database["public"]["Enums"]["endpoint_type"]
           enabled: boolean
           exclude_keywords: string[]
+          forward_delay: number
           forwarded_count: number
           id: string
           include_keywords: string[]
@@ -75,6 +76,7 @@ export type Database = {
           destination_type?: Database["public"]["Enums"]["endpoint_type"]
           enabled?: boolean
           exclude_keywords?: string[]
+          forward_delay?: number
           forwarded_count?: number
           id?: string
           include_keywords?: string[]
@@ -91,6 +93,7 @@ export type Database = {
           destination_type?: Database["public"]["Enums"]["endpoint_type"]
           enabled?: boolean
           exclude_keywords?: string[]
+          forward_delay?: number
           forwarded_count?: number
           id?: string
           include_keywords?: string[]
