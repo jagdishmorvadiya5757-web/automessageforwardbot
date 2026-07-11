@@ -61,6 +61,7 @@ const empty = {
   include_keywords: "",
   exclude_keywords: "",
   max_forward_count: "",
+  forward_delay: "",
 };
 
 function RulesPage() {
