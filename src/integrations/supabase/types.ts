@@ -256,6 +256,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_forwarded_count: {
+        Args: { _rule_id: string; _user_id: string }
+        Returns: {
+          enabled: boolean
+          forwarded_count: number
+          max_forward_count: number
+        }[]
+      }
       release_forwarding_slot: {
         Args: { _rule_id: string; _user_id: string }
         Returns: {
