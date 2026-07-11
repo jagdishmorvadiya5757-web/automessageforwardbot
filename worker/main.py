@@ -482,16 +482,7 @@ async def forward_worker():
                 break
 
         forward_queue.task_done()
-        # Per-rule delay: wait the amount configured on this rule (seconds).
-        # Falls back to the global FORWARD_DELAY when the rule has none.
-        try:
-            rule_delay = float(job.get("delay") or 0)
-        except (TypeError, ValueError):
-            rule_delay = 0.0
-        delay = rule_delay if rule_delay > 0 else FORWARD_DELAY
-        if delay > 0:
-            print(f"[delay] waiting {delay}s (rule delay)")
-            await asyncio.sleep(delay)
+
 
 
 async def main():
