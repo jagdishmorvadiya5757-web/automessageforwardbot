@@ -353,7 +353,8 @@ function RulesPage() {
   );
 }
 
-const MANUAL = "__manual__";
+
+
 
 function EndpointPicker({
   label,
