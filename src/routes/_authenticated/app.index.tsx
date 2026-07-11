@@ -259,6 +259,21 @@ function RulesPage() {
                   placeholder="50"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Delay between forwards (optional, seconds)</Label>
+                <Input
+                  inputMode="decimal"
+                  min={0}
+                  step="0.1"
+                  type="number"
+                  value={form.forward_delay}
+                  onChange={(e) => setForm({ ...form, forward_delay: e.target.value })}
+                  placeholder="e.g. 0.5, 2, 5"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Wait this many seconds after each forward for this rule. Leave empty for no delay.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -487,4 +502,11 @@ function parseLimit(value: string): number | null {
   if (!trimmed) return null;
   const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseDelay(value: string): number {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  const parsed = Number.parseFloat(trimmed);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
