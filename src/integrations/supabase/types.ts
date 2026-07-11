@@ -59,8 +59,10 @@ export type Database = {
           destination_type: Database["public"]["Enums"]["endpoint_type"]
           enabled: boolean
           exclude_keywords: string[]
+          forwarded_count: number
           id: string
           include_keywords: string[]
+          max_forward_count: number | null
           name: string | null
           source: string
           source_type: Database["public"]["Enums"]["endpoint_type"]
@@ -73,8 +75,10 @@ export type Database = {
           destination_type?: Database["public"]["Enums"]["endpoint_type"]
           enabled?: boolean
           exclude_keywords?: string[]
+          forwarded_count?: number
           id?: string
           include_keywords?: string[]
+          max_forward_count?: number | null
           name?: string | null
           source: string
           source_type?: Database["public"]["Enums"]["endpoint_type"]
@@ -87,8 +91,10 @@ export type Database = {
           destination_type?: Database["public"]["Enums"]["endpoint_type"]
           enabled?: boolean
           exclude_keywords?: string[]
+          forwarded_count?: number
           id?: string
           include_keywords?: string[]
+          max_forward_count?: number | null
           name?: string | null
           source?: string
           source_type?: Database["public"]["Enums"]["endpoint_type"]
@@ -249,6 +255,22 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      release_forwarding_slot: {
+        Args: { _rule_id: string; _user_id: string }
+        Returns: {
+          enabled: boolean
+          forwarded_count: number
+        }[]
+      }
+      reserve_forwarding_slot: {
+        Args: { _rule_id: string; _user_id: string }
+        Returns: {
+          allowed: boolean
+          disabled: boolean
+          forwarded_count: number
+          max_forward_count: number
+        }[]
       }
     }
     Enums: {
