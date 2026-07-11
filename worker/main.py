@@ -23,7 +23,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-flood-only-wait-v5"
+WORKER_VERSION = "2026-07-11-media-forward-v6"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -420,6 +420,7 @@ async def on_message(event):
             "source": rule["source"],
             "destination": rule["destination"],
             "text": text,
+            "message": event.message,
             "msg_ref": str(event.message.id),
         })
         print(f"[queue] {rule['source']} -> {rule['destination']} (size {forward_queue.qsize()})")
@@ -438,9 +439,21 @@ async def forward_worker():
 
         while True:
             try:
-                await client.send_message(entity, job["text"])
+                message = job.get("message")
+                media = getattr(message, "media", None) if message else None
+                if media is not None:
+                    # Re-send the original media (photo/video/document/etc.) with
+                    # the original text as its caption. This copies the content
+                    # so the destination shows the image, not just the text.
+                    await client.send_file(
+                        entity,
+                        file=media,
+                        caption=job["text"] or "",
+                    )
+                else:
+                    await client.send_message(entity, job["text"])
                 await post_log(job["rule_id"], "forwarded", f"to {dest}", job["msg_ref"])
-                print(f"[fwd] {job['source']} -> {dest}")
+                print(f"[fwd] {job['source']} -> {dest}{' (media)' if media is not None else ''}")
                 break
             except FloodWaitError as e:
                 wait = float(getattr(e, "seconds", 0)) + FLOOD_WAIT_EXTRA
