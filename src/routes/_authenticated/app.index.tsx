@@ -16,8 +16,15 @@ import {
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown } from "lucide-react";
 
 type EndpointType = "channel" | "bot";
 type Rule = {
@@ -346,7 +353,8 @@ function RulesPage() {
   );
 }
 
-const MANUAL = "__manual__";
+
+
 
 function EndpointPicker({
   label,
@@ -365,44 +373,81 @@ function EndpointPicker({
   onTypeChange: (v: EndpointType) => void;
   placeholder: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const [manual, setManual] = useState(false);
+
   // Selected channel identifier matches a synced channel when its username/id equals value.
   const match = channels.find((c) => (c.username ? `@${c.username}` : c.chat_id) === value);
-  const selectValue = match ? (match.username ? `@${match.username}` : match.chat_id) : value ? MANUAL : "";
+  const showManual = channels.length === 0 || manual || (!!value && !match);
 
   return (
     <div className="grid grid-cols-[1fr_auto] items-end gap-2">
       <div className="space-y-2">
         <Label>{label}</Label>
         {channels.length > 0 ? (
-          <Select
-            value={selectValue}
-            onValueChange={(v) => {
-              if (v === MANUAL) {
-                onValueChange("");
-                return;
-              }
-              const c = channels.find((ch) => (ch.username ? `@${ch.username}` : ch.chat_id) === v);
-              onValueChange(v);
-              if (c) onTypeChange(c.kind === "bot" ? "bot" : "channel");
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a channel" />
-            </SelectTrigger>
-            <SelectContent>
-              {channels.map((c) => {
-                const id = c.username ? `@${c.username}` : c.chat_id;
-                return (
-                  <SelectItem key={id} value={id}>
-                    {c.title}
-                  </SelectItem>
-                );
-              })}
-              <SelectItem value={MANUAL}>Type manually…</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-between font-normal"
+              >
+                <span className="truncate">
+                  {match ? match.title : value ? value : "Pick a channel"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search channel…" />
+                <CommandList>
+                  <CommandEmpty>No channel found.</CommandEmpty>
+                  <CommandGroup>
+                    {channels.map((c) => {
+                      const id = c.username ? `@${c.username}` : c.chat_id;
+                      return (
+                        <CommandItem
+                          key={id}
+                          value={`${c.title} ${id}`}
+                          onSelect={() => {
+                            onValueChange(id);
+                            onTypeChange(c.kind === "bot" ? "bot" : "channel");
+                            setManual(false);
+                            setOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              value === id ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <span className="truncate">{c.title}</span>
+                          <span className="ml-auto truncate pl-2 text-xs text-muted-foreground">{id}</span>
+                        </CommandItem>
+                      );
+                    })}
+                    <CommandItem
+                      value="__type-manually__"
+                      onSelect={() => {
+                        onValueChange("");
+                        setManual(true);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check className="mr-2 h-4 w-4 opacity-0" />
+                      Type manually…
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         ) : null}
-        {(channels.length === 0 || selectValue === MANUAL) && (
+        {showManual && (
           <Input
             value={value}
             onChange={(e) => onValueChange(e.target.value)}
