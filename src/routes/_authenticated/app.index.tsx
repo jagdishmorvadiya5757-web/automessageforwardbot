@@ -71,6 +71,7 @@ function RulesPage() {
       if (error) throw error;
       return data as Rule[];
     },
+    refetchInterval: 5000,
   });
 
   const { data: channels = [] } = useQuery({
@@ -329,7 +330,7 @@ function RulesPage() {
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => resetCount.mutate(r.id)}>
+                  <Button aria-label="Reset counter" title="Reset counter" variant="ghost" size="icon" onClick={() => resetCount.mutate(r.id)}>
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => remove.mutate(r.id)}>

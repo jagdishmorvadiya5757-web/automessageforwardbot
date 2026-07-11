@@ -26,11 +26,15 @@ export const Route = createFileRoute("/api/public/worker/forward-slots")({
         if (!parsed.success) return new Response("Invalid payload", { status: 400 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const fn = parsed.data.action === "reserve" ? "reserve_forwarding_slot" : "release_forwarding_slot";
-        const { data, error } = await supabaseAdmin.rpc(fn, {
-          _rule_id: parsed.data.rule_id,
-          _user_id: auth.userId,
-        });
+        const { data, error } = parsed.data.action === "reserve"
+          ? await supabaseAdmin.rpc("reserve_forwarding_slot", {
+              _rule_id: parsed.data.rule_id,
+              _user_id: auth.userId,
+            })
+          : await supabaseAdmin.rpc("release_forwarding_slot", {
+              _rule_id: parsed.data.rule_id,
+              _user_id: auth.userId,
+            });
 
         if (error) return new Response(error.message, { status: 500 });
         return Response.json({ ok: true, result: data?.[0] ?? null });
