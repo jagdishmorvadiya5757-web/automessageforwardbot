@@ -141,6 +141,21 @@ function RulesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const resetCount = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("forwarding_rules")
+        .update({ forwarded_count: 0, enabled: true })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rules"] });
+      toast.success("Counter reset");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function openNew() {
     setEditing(null);
     setForm(empty);
