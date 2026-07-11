@@ -249,6 +249,29 @@ function RulesPage() {
         </Dialog>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Forwarded total</p>
+            <p className="text-2xl font-semibold text-foreground">{totals.forwarded}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Active rules</p>
+            <p className="text-2xl font-semibold text-foreground">{totals.active}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Limited rules</p>
+            <p className="text-2xl font-semibold text-foreground">
+              {rules.filter((rule) => rule.max_forward_count !== null).length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : rules.length === 0 ? (
