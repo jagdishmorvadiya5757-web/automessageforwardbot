@@ -16,8 +16,15 @@ import {
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown } from "lucide-react";
 
 type EndpointType = "channel" | "bot";
 type Rule = {
