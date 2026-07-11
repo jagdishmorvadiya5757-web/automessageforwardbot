@@ -86,6 +86,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@ForwardFlow" },
+      { name: "twitter:title", content: "ForwardFlow — Telegram Auto-Forwarding" },
+      { name: "twitter:description", content: "Auto-forward Telegram messages between any channels and bots with keyword filters and live activity logs." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2673395c-995d-4520-86bd-070b571f376d/id-preview-83f4322e--204f9241-6b8e-49b4-857b-d4d169778e2a.lovable.app-1783781281910.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2673395c-995d-4520-86bd-070b571f376d/id-preview-83f4322e--204f9241-6b8e-49b4-857b-d4d169778e2a.lovable.app-1783781281910.png" },
     ],
     links: [
       {
