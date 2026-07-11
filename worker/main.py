@@ -14,13 +14,16 @@ TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
-# Delay (seconds) between two forwards. Keeps us under Telegram's flood limits.
-FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "5"))
+# Delay (seconds) between two forwards. Default 0 => no artificial delay;
+# messages forward immediately. A delay is only ever applied when Telegram
+# itself returns a FloodWait (see forward_worker). Set >0 only if you want a
+# permanent throttle.
+FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 # Extra safety seconds added on top of Telegram's requested FloodWait.
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-slow-queue-v4"
+WORKER_VERSION = "2026-07-11-flood-only-wait-v5"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -452,8 +455,11 @@ async def forward_worker():
                 break
 
         forward_queue.task_done()
-        # Throttle between sends to stay under Telegram's flood limits.
-        await asyncio.sleep(FORWARD_DELAY)
+        # No artificial throttle by default. We only ever wait when Telegram
+        # returns a FloodWait above. Apply a delay here ONLY if the user set
+        # FORWARD_DELAY > 0 explicitly.
+        if FORWARD_DELAY > 0:
+            await asyncio.sleep(FORWARD_DELAY)
 
 
 async def main():
