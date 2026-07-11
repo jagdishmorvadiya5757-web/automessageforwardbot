@@ -255,10 +255,15 @@ async def on_message(event):
         return
 
     for rule in matched:
+        # For bot sources, only forward the bot's replies (incoming), never
+        # the messages you send TO the bot (outgoing / your own messages).
+        if rule.get("source_type") == "bot" and getattr(event, "out", False):
+            continue
         text = event.message.message or ""
         if not matches_filters(text, rule):
             await post_log(rule["id"], "skipped", "filtered out by keywords", str(event.message.id))
             continue
+
         try:
             dest = rule["destination"]
             entity = dest if dest.startswith("@") else int(dest) if dest.lstrip("-").isdigit() else dest
