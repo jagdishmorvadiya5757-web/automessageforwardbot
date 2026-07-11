@@ -346,6 +346,10 @@ function RulesPage() {
                     {r.max_forward_count && r.forwarded_count >= r.max_forward_count && (
                       <Badge variant="secondary">auto off</Badge>
                     )}
+                    {r.forward_delay > 0 && (
+                      <Badge variant="outline">{r.forward_delay}s delay</Badge>
+                    )}
+
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

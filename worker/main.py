@@ -23,7 +23,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-per-rule-delay-v7"
+WORKER_VERSION = "2026-07-11-per-rule-delay-v8"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -438,6 +438,19 @@ async def forward_worker():
         except Exception:
             entity = dest
 
+        # Per-rule delay: wait BEFORE forwarding so the delay is visible even
+        # for a single message. Falls back to the global FORWARD_DELAY.
+        try:
+            rule_delay = float(job.get("delay") or 0)
+        except (TypeError, ValueError):
+            rule_delay = 0.0
+        delay = rule_delay if rule_delay > 0 else FORWARD_DELAY
+        if delay > 0:
+            print(f"[delay] waiting {delay}s before forward (rule delay)")
+            await post_log(job["rule_id"], "waiting", f"delaying {delay}s before forward", job["msg_ref"])
+            await asyncio.sleep(delay)
+
+
         while True:
             try:
                 message = job.get("message")
@@ -469,16 +482,7 @@ async def forward_worker():
                 break
 
         forward_queue.task_done()
-        # Per-rule delay: wait the amount configured on this rule (seconds).
-        # Falls back to the global FORWARD_DELAY when the rule has none.
-        try:
-            rule_delay = float(job.get("delay") or 0)
-        except (TypeError, ValueError):
-            rule_delay = 0.0
-        delay = rule_delay if rule_delay > 0 else FORWARD_DELAY
-        if delay > 0:
-            print(f"[delay] waiting {delay}s (rule delay)")
-            await asyncio.sleep(delay)
+
 
 
 async def main():
