@@ -17,7 +17,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw } from "lucide-react";
 
 type EndpointType = "channel" | "bot";
 type Rule = {
@@ -30,6 +30,8 @@ type Rule = {
   enabled: boolean;
   include_keywords: string[];
   exclude_keywords: string[];
+  forwarded_count: number;
+  max_forward_count: number | null;
 };
 type Channel = {
   chat_id: string;
@@ -50,6 +52,7 @@ const empty = {
   destination_type: "channel" as EndpointType,
   include_keywords: "",
   exclude_keywords: "",
+  max_forward_count: "",
 };
 
 function RulesPage() {
@@ -97,6 +100,7 @@ function RulesPage() {
         destination_type: form.destination_type,
         include_keywords: splitKw(form.include_keywords),
         exclude_keywords: splitKw(form.exclude_keywords),
+        max_forward_count: parseLimit(form.max_forward_count),
       };
       if (editing) {
         const { error } = await supabase.from("forwarding_rules").update(payload).eq("id", editing.id);
