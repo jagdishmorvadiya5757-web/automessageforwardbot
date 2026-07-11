@@ -16,6 +16,7 @@ POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
+WORKER_VERSION = "2026-07-11-own-message-filter-v2"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -253,6 +254,32 @@ def source_keys_for_chat(chat) -> list[str]:
     return keys
 
 
+def peer_id_value(peer) -> int | None:
+    """Return the numeric id from Telethon Peer/User-like objects when present."""
+    if peer is None:
+        return None
+    for attr in ("user_id", "channel_id", "chat_id", "id"):
+        value = getattr(peer, attr, None)
+        if value is not None:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+    try:
+        return int(peer)
+    except (TypeError, ValueError):
+        return None
+
+
+def same_user_id(value, expected: int | None) -> bool:
+    if value is None or expected is None:
+        return False
+    try:
+        return abs(int(value)) == abs(int(expected))
+    except (TypeError, ValueError):
+        return False
+
+
 def is_bot_chat(chat, matched_rules: list[dict]) -> bool:
     """True when the actual Telegram source is a bot chat.
 
@@ -270,16 +297,27 @@ async def is_message_from_me(event) -> bool:
     In bot PMs Telethon may surface sent-message updates slightly differently,
     so check the event flags first, then compare sender id as a fallback.
     """
-    if bool(getattr(event, "out", False)) or bool(getattr(event.message, "out", False)):
+    message = event.message
+    original_update = getattr(event, "original_update", None)
+
+    if (
+        bool(getattr(event, "out", False))
+        or bool(getattr(message, "out", False))
+        or bool(getattr(original_update, "out", False))
+    ):
         return True
 
-    sender_id = getattr(event.message, "sender_id", None)
-    if my_id is not None and sender_id == my_id:
+    sender_id = getattr(event, "sender_id", None) or getattr(message, "sender_id", None)
+    if same_user_id(sender_id, my_id):
+        return True
+
+    from_id = peer_id_value(getattr(message, "from_id", None))
+    if same_user_id(from_id, my_id):
         return True
 
     try:
         sender = await event.get_sender()
-        if my_id is not None and getattr(sender, "id", None) == my_id:
+        if same_user_id(getattr(sender, "id", None), my_id):
             return True
     except Exception:
         pass
@@ -297,13 +335,13 @@ async def on_message(event):
     if not matched:
         return
 
-    bot_source = is_bot_chat(chat, matched)
     is_from_me = await is_message_from_me(event)
 
-    # In bot chats, the message you type is also a NewMessage update. It must
-    # never be forwarded; only the incoming bot response should be forwarded.
-    if bot_source and is_from_me:
-        print(f"[skip] user message to bot: {getattr(event.message, 'id', '')}")
+    # Messages typed by the logged-in Telegram account are outgoing updates.
+    # They must never be forwarded; this is especially important for bot PMs,
+    # where only the bot's incoming reply should be forwarded.
+    if is_from_me:
+        print(f"[skip] own/outgoing message: {getattr(event.message, 'id', '')}")
         return
 
     for rule in matched:
@@ -325,6 +363,7 @@ async def on_message(event):
 
 async def main():
     await client.connect()
+    print(f"[worker] version {WORKER_VERSION}")
     print(f"[worker] connected, syncing with {API_BASE_URL}")
     asyncio.create_task(heartbeat())
     asyncio.create_task(control_loop())
