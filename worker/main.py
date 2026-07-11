@@ -274,7 +274,12 @@ async def main():
     print(f"[worker] connected, syncing with {API_BASE_URL}")
     asyncio.create_task(heartbeat())
     asyncio.create_task(control_loop())
-    await client.run_until_disconnected()
+    # Stay alive without calling run_until_disconnected(), which would issue an
+    # authenticated request and crash before the account is logged in. The
+    # control loop drives login from the dashboard; once authorized, Telethon
+    # delivers NewMessage updates over the live connection.
+    while True:
+        await asyncio.sleep(3600)
 
 
 if __name__ == "__main__":
