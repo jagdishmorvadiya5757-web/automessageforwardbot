@@ -184,7 +184,7 @@ async def handle_login(state: dict):
 
 async def control_loop():
     """Continuously reconcile Telegram session with the dashboard's requests."""
-    global forwarding_started
+    global forwarding_started, my_id
     while True:
         authorized = await client.is_user_authorized()
         state = await get_login_state()
@@ -192,6 +192,13 @@ async def control_loop():
         if not authorized:
             await handle_login(state)
         else:
+            if my_id is None:
+                try:
+                    me = await client.get_me()
+                    my_id = me.id
+                    print(f"[worker] logged in as id={my_id}")
+                except Exception as e:
+                    print(f"[worker] get_me failed: {e}")
             action = state.get("pending_action")
             if action == "logout":
                 await handle_login(state)
