@@ -23,6 +23,7 @@ import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/wor
 import { Route as ApiPublicWorkerLoginStatusRouteImport } from './routes/api/public/worker/login-status'
 import { Route as ApiPublicWorkerLoginStateRouteImport } from './routes/api/public/worker/login-state'
 import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
+import { Route as ApiPublicWorkerForwardSlotsRouteImport } from './routes/api/public/worker/forward-slots'
 import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
 
 const AuthRoute = AuthRouteImport.update({
@@ -98,6 +99,12 @@ const ApiPublicWorkerHeartbeatRoute =
     path: '/api/public/worker/heartbeat',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWorkerForwardSlotsRoute =
+  ApiPublicWorkerForwardSlotsRouteImport.update({
+    id: '/api/public/worker/forward-slots',
+    path: '/api/public/worker/forward-slots',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkerChannelsRoute = ApiPublicWorkerChannelsRouteImport.update({
   id: '/api/public/worker/channels',
   path: '/api/public/worker/channels',
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
+  '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/login-state': typeof ApiPublicWorkerLoginStateRoute
   '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
@@ -129,6 +137,7 @@ export interface FileRoutesByTo {
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
+  '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/login-state': typeof ApiPublicWorkerLoginStateRoute
   '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
@@ -147,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
+  '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
   '/api/public/worker/login-state': typeof ApiPublicWorkerLoginStateRoute
   '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/app/worker'
     | '/app/'
     | '/api/public/worker/channels'
+    | '/api/public/worker/forward-slots'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/login-state'
     | '/api/public/worker/login-status'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/app/worker'
     | '/app'
     | '/api/public/worker/channels'
+    | '/api/public/worker/forward-slots'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/login-state'
     | '/api/public/worker/login-status'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/worker'
     | '/_authenticated/app/'
     | '/api/public/worker/channels'
+    | '/api/public/worker/forward-slots'
     | '/api/public/worker/heartbeat'
     | '/api/public/worker/login-state'
     | '/api/public/worker/login-status'
@@ -209,6 +222,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicWorkerChannelsRoute: typeof ApiPublicWorkerChannelsRoute
+  ApiPublicWorkerForwardSlotsRoute: typeof ApiPublicWorkerForwardSlotsRoute
   ApiPublicWorkerHeartbeatRoute: typeof ApiPublicWorkerHeartbeatRoute
   ApiPublicWorkerLoginStateRoute: typeof ApiPublicWorkerLoginStateRoute
   ApiPublicWorkerLoginStatusRoute: typeof ApiPublicWorkerLoginStatusRoute
@@ -316,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkerHeartbeatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/worker/forward-slots': {
+      id: '/api/public/worker/forward-slots'
+      path: '/api/public/worker/forward-slots'
+      fullPath: '/api/public/worker/forward-slots'
+      preLoaderRoute: typeof ApiPublicWorkerForwardSlotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/worker/channels': {
       id: '/api/public/worker/channels'
       path: '/api/public/worker/channels'
@@ -361,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicWorkerChannelsRoute: ApiPublicWorkerChannelsRoute,
+  ApiPublicWorkerForwardSlotsRoute: ApiPublicWorkerForwardSlotsRoute,
   ApiPublicWorkerHeartbeatRoute: ApiPublicWorkerHeartbeatRoute,
   ApiPublicWorkerLoginStateRoute: ApiPublicWorkerLoginStateRoute,
   ApiPublicWorkerLoginStatusRoute: ApiPublicWorkerLoginStatusRoute,
