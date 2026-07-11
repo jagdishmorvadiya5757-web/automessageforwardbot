@@ -4,7 +4,7 @@ import os
 import httpx
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.errors import RPCError, SessionPasswordNeededError
+from telethon.errors import FloodWaitError, RPCError, SessionPasswordNeededError
 
 load_dotenv()
 
