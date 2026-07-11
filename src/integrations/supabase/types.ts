@@ -284,7 +284,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       endpoint_type: "channel" | "bot"
-      forward_status: "forwarded" | "skipped" | "error"
+      forward_status: "forwarded" | "skipped" | "error" | "waiting"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -414,7 +414,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       endpoint_type: ["channel", "bot"],
-      forward_status: ["forwarded", "skipped", "error"],
+      forward_status: ["forwarded", "skipped", "error", "waiting"],
     },
   },
 } as const
