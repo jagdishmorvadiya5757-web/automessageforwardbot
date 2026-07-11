@@ -13,10 +13,11 @@ export const Route = createFileRoute("/api/public/worker/rules")({
         const { data, error } = await supabaseAdmin
           .from("forwarding_rules")
           .select(
-            "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords",
+            "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count",
           )
           .eq("user_id", auth.userId)
-          .eq("enabled", true);
+          .eq("enabled", true)
+          .or("max_forward_count.is.null,forwarded_count.lt.max_forward_count");
 
         if (error) return new Response(error.message, { status: 500 });
         return Response.json({ rules: data ?? [] });

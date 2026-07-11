@@ -16,7 +16,7 @@ POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-own-message-filter-v2"
+WORKER_VERSION = "2026-07-11-counted-bot-filter-v3"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -78,6 +78,32 @@ async def post_log(rule_id, status, detail, ref=None):
         )
     except Exception as e:
         print(f"[log] post failed: {e}")
+
+
+async def reserve_forwarding_slot(rule_id: str) -> dict:
+    try:
+        r = await http.post(
+            f"{API_BASE_URL}/api/public/worker/forward-slots",
+            headers=HEADERS,
+            json={"rule_id": rule_id, "action": "reserve"},
+        )
+        r.raise_for_status()
+        return r.json().get("result") or {"allowed": False}
+    except Exception as e:
+        print(f"[limit] reserve failed: {e}")
+        return {"allowed": False, "error": str(e)}
+
+
+async def release_forwarding_slot(rule_id: str):
+    try:
+        r = await http.post(
+            f"{API_BASE_URL}/api/public/worker/forward-slots",
+            headers=HEADERS,
+            json={"rule_id": rule_id, "action": "release"},
+        )
+        r.raise_for_status()
+    except Exception as e:
+        print(f"[limit] release failed: {e}")
 
 
 async def push_channels(channels: list[dict]):
@@ -291,6 +317,17 @@ def is_bot_chat(chat, matched_rules: list[dict]) -> bool:
     )
 
 
+def message_sender_id(event) -> int | None:
+    message = event.message
+    sender_id = getattr(event, "sender_id", None) or getattr(message, "sender_id", None)
+    if sender_id is not None:
+        try:
+            return int(sender_id)
+        except (TypeError, ValueError):
+            return None
+    return peer_id_value(getattr(message, "from_id", None))
+
+
 async def is_message_from_me(event) -> bool:
     """Detect messages sent by the logged-in account.
 
@@ -336,6 +373,14 @@ async def on_message(event):
         return
 
     is_from_me = await is_message_from_me(event)
+    bot_source = is_bot_chat(chat, matched)
+
+    # For bot private chats, only the bot's own incoming replies should pass.
+    # User prompts sent to the bot can sometimes arrive without a reliable
+    # outgoing flag, so compare the sender with the bot chat id too.
+    if bot_source and not same_user_id(message_sender_id(event), getattr(chat, "id", None)):
+        print(f"[skip] non-bot sender in bot chat: {getattr(event.message, 'id', '')}")
+        return
 
     # Messages typed by the logged-in Telegram account are outgoing updates.
     # They must never be forwarded; this is especially important for bot PMs,
@@ -350,13 +395,21 @@ async def on_message(event):
             await post_log(rule["id"], "skipped", "filtered out by keywords", str(event.message.id))
             continue
 
+        slot = await reserve_forwarding_slot(rule["id"])
+        if not slot.get("allowed"):
+            detail = "forward limit reached; rule turned off" if slot.get("disabled") else "rule disabled or limit reached"
+            await post_log(rule["id"], "skipped", detail, str(event.message.id))
+            print(f"[limit] skipped {rule['source']}: {detail}")
+            continue
+
         try:
             dest = rule["destination"]
             entity = dest if dest.startswith("@") else int(dest) if dest.lstrip("-").isdigit() else dest
-            await client.send_message(entity, event.message)
+            await client.send_message(entity, text)
             await post_log(rule["id"], "forwarded", f"to {dest}", str(event.message.id))
             print(f"[fwd] {rule['source']} -> {dest}")
         except (RPCError, Exception) as e:
+            await release_forwarding_slot(rule["id"])
             await post_log(rule["id"], "error", str(e), str(event.message.id))
             print(f"[fwd] error: {e}")
 

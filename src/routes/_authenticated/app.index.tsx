@@ -17,7 +17,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw } from "lucide-react";
 
 type EndpointType = "channel" | "bot";
 type Rule = {
@@ -30,6 +30,8 @@ type Rule = {
   enabled: boolean;
   include_keywords: string[];
   exclude_keywords: string[];
+  forwarded_count: number;
+  max_forward_count: number | null;
 };
 type Channel = {
   chat_id: string;
@@ -50,6 +52,7 @@ const empty = {
   destination_type: "channel" as EndpointType,
   include_keywords: "",
   exclude_keywords: "",
+  max_forward_count: "",
 };
 
 function RulesPage() {
@@ -68,6 +71,7 @@ function RulesPage() {
       if (error) throw error;
       return data as Rule[];
     },
+    refetchInterval: 5000,
   });
 
   const { data: channels = [] } = useQuery({
@@ -97,6 +101,7 @@ function RulesPage() {
         destination_type: form.destination_type,
         include_keywords: splitKw(form.include_keywords),
         exclude_keywords: splitKw(form.exclude_keywords),
+        max_forward_count: parseLimit(form.max_forward_count),
       };
       if (editing) {
         const { error } = await supabase.from("forwarding_rules").update(payload).eq("id", editing.id);
@@ -137,6 +142,21 @@ function RulesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const resetCount = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("forwarding_rules")
+        .update({ forwarded_count: 0, enabled: true })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rules"] });
+      toast.success("Counter reset");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function openNew() {
     setEditing(null);
     setForm(empty);
@@ -152,9 +172,19 @@ function RulesPage() {
       destination_type: r.destination_type,
       include_keywords: r.include_keywords.join(", "),
       exclude_keywords: r.exclude_keywords.join(", "),
+      max_forward_count: r.max_forward_count?.toString() ?? "",
     });
     setOpen(true);
   }
+
+  const totals = rules.reduce(
+    (acc, rule) => {
+      acc.forwarded += rule.forwarded_count;
+      if (rule.enabled) acc.active += 1;
+      return acc;
+    },
+    { forwarded: 0, active: 0 },
+  );
 
   return (
     <div className="space-y-6">
@@ -207,6 +237,17 @@ function RulesPage() {
                 <Label>Exclude keywords (optional, comma-separated)</Label>
                 <Input value={form.exclude_keywords} onChange={(e) => setForm({ ...form, exclude_keywords: e.target.value })} placeholder="ad, promo" />
               </div>
+              <div className="space-y-2">
+                <Label>Forward limit (optional)</Label>
+                <Input
+                  inputMode="numeric"
+                  min={1}
+                  type="number"
+                  value={form.max_forward_count}
+                  onChange={(e) => setForm({ ...form, max_forward_count: e.target.value })}
+                  placeholder="50"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -218,6 +259,29 @@ function RulesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Forwarded total</p>
+            <p className="text-2xl font-semibold text-foreground">{totals.forwarded}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Active rules</p>
+            <p className="text-2xl font-semibold text-foreground">{totals.active}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Limited rules</p>
+            <p className="text-2xl font-semibold text-foreground">
+              {rules.filter((rule) => rule.max_forward_count !== null).length}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {isLoading ? (
@@ -249,6 +313,14 @@ function RulesPage() {
                       {r.exclude_keywords.length > 0 && <>· exclude: {r.exclude_keywords.join(", ")}</>}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">
+                      {r.forwarded_count}{r.max_forward_count ? ` / ${r.max_forward_count}` : ""} forwarded
+                    </Badge>
+                    {r.max_forward_count && r.forwarded_count >= r.max_forward_count && (
+                      <Badge variant="secondary">auto off</Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -257,6 +329,9 @@ function RulesPage() {
                   />
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
                     <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button aria-label="Reset counter" title="Reset counter" variant="ghost" size="icon" onClick={() => resetCount.mutate(r.id)}>
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => remove.mutate(r.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -356,4 +431,11 @@ function TypeSelect({ value, onChange }: { value: EndpointType; onChange: (v: En
 
 function splitKw(s: string): string[] {
   return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
+
+function parseLimit(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
