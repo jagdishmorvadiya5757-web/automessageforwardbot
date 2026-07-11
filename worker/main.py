@@ -17,7 +17,8 @@ LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
 
-client = TelegramClient("forwardflow_session", TG_API_ID, TG_API_HASH)
+SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
+client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
 http = httpx.AsyncClient(timeout=30)
 
 # In-memory rule cache: { source_key: [rules] }
