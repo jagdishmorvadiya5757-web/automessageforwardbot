@@ -111,6 +111,7 @@ function RulesPage() {
         include_keywords: splitKw(form.include_keywords),
         exclude_keywords: splitKw(form.exclude_keywords),
         max_forward_count: parseLimit(form.max_forward_count),
+        forward_delay: parseDelay(form.forward_delay),
       };
       if (editing) {
         const { error } = await supabase.from("forwarding_rules").update(payload).eq("id", editing.id);
@@ -182,6 +183,7 @@ function RulesPage() {
       include_keywords: r.include_keywords.join(", "),
       exclude_keywords: r.exclude_keywords.join(", "),
       max_forward_count: r.max_forward_count?.toString() ?? "",
+      forward_delay: r.forward_delay ? r.forward_delay.toString() : "",
     });
     setOpen(true);
   }
