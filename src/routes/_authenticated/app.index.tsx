@@ -236,6 +236,17 @@ function RulesPage() {
                 <Label>Exclude keywords (optional, comma-separated)</Label>
                 <Input value={form.exclude_keywords} onChange={(e) => setForm({ ...form, exclude_keywords: e.target.value })} placeholder="ad, promo" />
               </div>
+              <div className="space-y-2">
+                <Label>Forward limit (optional)</Label>
+                <Input
+                  inputMode="numeric"
+                  min={1}
+                  type="number"
+                  value={form.max_forward_count}
+                  onChange={(e) => setForm({ ...form, max_forward_count: e.target.value })}
+                  placeholder="50"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button
