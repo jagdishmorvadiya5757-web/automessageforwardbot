@@ -185,8 +185,8 @@ function RulesPage() {
                 channels={channels}
                 value={form.source}
                 type={form.source_type}
-                onValueChange={(v) => setForm({ ...form, source: v })}
-                onTypeChange={(v) => setForm({ ...form, source_type: v })}
+                onValueChange={(v) => setForm((f) => ({ ...f, source: v }))}
+                onTypeChange={(v) => setForm((f) => ({ ...f, source_type: v }))}
                 placeholder="@channel or -100123..."
               />
               <EndpointPicker
@@ -194,8 +194,8 @@ function RulesPage() {
                 channels={channels}
                 value={form.destination}
                 type={form.destination_type}
-                onValueChange={(v) => setForm({ ...form, destination: v })}
-                onTypeChange={(v) => setForm({ ...form, destination_type: v })}
+                onValueChange={(v) => setForm((f) => ({ ...f, destination: v }))}
+                onTypeChange={(v) => setForm((f) => ({ ...f, destination_type: v }))}
                 placeholder="@mychannel or @mybot"
               />
 
