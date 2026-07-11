@@ -409,16 +409,51 @@ async def on_message(event):
             print(f"[limit] skipped {rule['source']}: {detail}")
             continue
 
+        # Queue the send instead of firing it inline. The forward_worker sends
+        # jobs one at a time with a delay, and on a FloodWait it waits and
+        # retries the SAME job so no message is ever dropped.
+        await forward_queue.put({
+            "rule_id": rule["id"],
+            "source": rule["source"],
+            "destination": rule["destination"],
+            "text": text,
+            "msg_ref": str(event.message.id),
+        })
+        print(f"[queue] {rule['source']} -> {rule['destination']} (size {forward_queue.qsize()})")
+
+
+async def forward_worker():
+    """Serial sender: one message at a time, throttled, retried on FloodWait."""
+    print(f"[queue] worker started (delay {FORWARD_DELAY}s)")
+    while True:
+        job = await forward_queue.get()
+        dest = job["destination"]
         try:
-            dest = rule["destination"]
             entity = dest if dest.startswith("@") else int(dest) if dest.lstrip("-").isdigit() else dest
-            await client.send_message(entity, text)
-            await post_log(rule["id"], "forwarded", f"to {dest}", str(event.message.id))
-            print(f"[fwd] {rule['source']} -> {dest}")
-        except (RPCError, Exception) as e:
-            await release_forwarding_slot(rule["id"])
-            await post_log(rule["id"], "error", str(e), str(event.message.id))
-            print(f"[fwd] error: {e}")
+        except Exception:
+            entity = dest
+
+        while True:
+            try:
+                await client.send_message(entity, job["text"])
+                await post_log(job["rule_id"], "forwarded", f"to {dest}", job["msg_ref"])
+                print(f"[fwd] {job['source']} -> {dest}")
+                break
+            except FloodWaitError as e:
+                wait = float(getattr(e, "seconds", 0)) + FLOOD_WAIT_EXTRA
+                await post_log(job["rule_id"], "waiting", f"flood limit, retry in {int(wait)}s", job["msg_ref"])
+                print(f"[wait] flood limit hit, sleeping {int(wait)}s before retry")
+                await asyncio.sleep(wait)
+                # loop again to retry the same job — message is NOT dropped
+            except (RPCError, Exception) as e:
+                await release_forwarding_slot(job["rule_id"])
+                await post_log(job["rule_id"], "error", str(e), job["msg_ref"])
+                print(f"[fwd] error: {e}")
+                break
+
+        forward_queue.task_done()
+        # Throttle between sends to stay under Telegram's flood limits.
+        await asyncio.sleep(FORWARD_DELAY)
 
 
 async def main():
