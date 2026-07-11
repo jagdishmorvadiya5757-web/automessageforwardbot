@@ -23,7 +23,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-media-forward-v6"
+WORKER_VERSION = "2026-07-11-per-rule-delay-v7"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -422,6 +422,7 @@ async def on_message(event):
             "text": text,
             "message": event.message,
             "msg_ref": str(event.message.id),
+            "delay": rule.get("forward_delay") or 0,
         })
         print(f"[queue] {rule['source']} -> {rule['destination']} (size {forward_queue.qsize()})")
 
@@ -468,11 +469,16 @@ async def forward_worker():
                 break
 
         forward_queue.task_done()
-        # No artificial throttle by default. We only ever wait when Telegram
-        # returns a FloodWait above. Apply a delay here ONLY if the user set
-        # FORWARD_DELAY > 0 explicitly.
-        if FORWARD_DELAY > 0:
-            await asyncio.sleep(FORWARD_DELAY)
+        # Per-rule delay: wait the amount configured on this rule (seconds).
+        # Falls back to the global FORWARD_DELAY when the rule has none.
+        try:
+            rule_delay = float(job.get("delay") or 0)
+        except (TypeError, ValueError):
+            rule_delay = 0.0
+        delay = rule_delay if rule_delay > 0 else FORWARD_DELAY
+        if delay > 0:
+            print(f"[delay] waiting {delay}s (rule delay)")
+            await asyncio.sleep(delay)
 
 
 async def main():

@@ -39,6 +39,7 @@ type Rule = {
   exclude_keywords: string[];
   forwarded_count: number;
   max_forward_count: number | null;
+  forward_delay: number;
 };
 type Channel = {
   chat_id: string;
@@ -60,6 +61,7 @@ const empty = {
   include_keywords: "",
   exclude_keywords: "",
   max_forward_count: "",
+  forward_delay: "",
 };
 
 function RulesPage() {
@@ -109,6 +111,7 @@ function RulesPage() {
         include_keywords: splitKw(form.include_keywords),
         exclude_keywords: splitKw(form.exclude_keywords),
         max_forward_count: parseLimit(form.max_forward_count),
+        forward_delay: parseDelay(form.forward_delay),
       };
       if (editing) {
         const { error } = await supabase.from("forwarding_rules").update(payload).eq("id", editing.id);
@@ -180,6 +183,7 @@ function RulesPage() {
       include_keywords: r.include_keywords.join(", "),
       exclude_keywords: r.exclude_keywords.join(", "),
       max_forward_count: r.max_forward_count?.toString() ?? "",
+      forward_delay: r.forward_delay ? r.forward_delay.toString() : "",
     });
     setOpen(true);
   }
@@ -254,6 +258,21 @@ function RulesPage() {
                   onChange={(e) => setForm({ ...form, max_forward_count: e.target.value })}
                   placeholder="50"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Delay between forwards (optional, seconds)</Label>
+                <Input
+                  inputMode="decimal"
+                  min={0}
+                  step="0.1"
+                  type="number"
+                  value={form.forward_delay}
+                  onChange={(e) => setForm({ ...form, forward_delay: e.target.value })}
+                  placeholder="e.g. 0.5, 2, 5"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Wait this many seconds after each forward for this rule. Leave empty for no delay.
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -483,4 +502,11 @@ function parseLimit(value: string): number | null {
   if (!trimmed) return null;
   const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseDelay(value: string): number {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  const parsed = Number.parseFloat(trimmed);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
