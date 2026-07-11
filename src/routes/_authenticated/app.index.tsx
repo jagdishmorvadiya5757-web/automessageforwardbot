@@ -386,3 +386,10 @@ function TypeSelect({ value, onChange }: { value: EndpointType; onChange: (v: En
 function splitKw(s: string): string[] {
   return s.split(",").map((x) => x.trim()).filter(Boolean);
 }
+
+function parseLimit(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
