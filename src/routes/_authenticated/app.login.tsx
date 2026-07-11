@@ -218,7 +218,10 @@ function TelegramLoginPage() {
             </CardContent>
           </Card>
 
-          {(status === "awaiting_code" || status === "password_needed") && (
+          {(status === "awaiting_code" ||
+            status === "password_needed" ||
+            status === "code_requested" ||
+            status === "error") && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
