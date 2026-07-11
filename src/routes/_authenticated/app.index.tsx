@@ -171,9 +171,19 @@ function RulesPage() {
       destination_type: r.destination_type,
       include_keywords: r.include_keywords.join(", "),
       exclude_keywords: r.exclude_keywords.join(", "),
+      max_forward_count: r.max_forward_count?.toString() ?? "",
     });
     setOpen(true);
   }
+
+  const totals = rules.reduce(
+    (acc, rule) => {
+      acc.forwarded += rule.forwarded_count;
+      if (rule.enabled) acc.active += 1;
+      return acc;
+    },
+    { forwarded: 0, active: 0 },
+  );
 
   return (
     <div className="space-y-6">
