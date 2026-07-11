@@ -1,0 +1,21 @@
+# fly.toml — Fly.io config for the ForwardFlow worker
+# Run `fly launch --no-deploy` once to generate an app name, or set it here.
+
+app = "forwardflow-worker"
+primary_region = "sin"   # choose a region near you: sin (Singapore), ams, iad, etc.
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Persistent disk so the Telegram login session survives restarts/redeploys.
+[mounts]
+  source = "forwardflow_data"
+  destination = "/data"
+
+# Keep exactly one always-on instance (no autostop) for the live Telegram connection.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[processes]
+  app = "python main.py"
