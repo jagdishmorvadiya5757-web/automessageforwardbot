@@ -26,6 +26,8 @@ rules_by_source: dict[str, list[dict]] = {}
 # Telegram login bookkeeping
 login_ctx: dict = {"phone": None, "phone_code_hash": None}
 forwarding_started = False
+# Own account id, filled after login. Used to skip messages YOU send.
+my_id: int | None = None
 
 
 def normalize(entity: str) -> str:
@@ -182,7 +184,7 @@ async def handle_login(state: dict):
 
 async def control_loop():
     """Continuously reconcile Telegram session with the dashboard's requests."""
-    global forwarding_started
+    global forwarding_started, my_id
     while True:
         authorized = await client.is_user_authorized()
         state = await get_login_state()
@@ -190,6 +192,13 @@ async def control_loop():
         if not authorized:
             await handle_login(state)
         else:
+            if my_id is None:
+                try:
+                    me = await client.get_me()
+                    my_id = me.id
+                    print(f"[worker] logged in as id={my_id}")
+                except Exception as e:
+                    print(f"[worker] get_me failed: {e}")
             action = state.get("pending_action")
             if action == "logout":
                 await handle_login(state)
@@ -254,10 +263,20 @@ async def on_message(event):
     if not matched:
         return
 
+    # Detect messages sent BY you (outgoing). Telethon marks these with
+    # event.out, but for extra safety we also compare the sender id against
+    # your own account id.
+    is_from_me = bool(getattr(event, "out", False)) or bool(
+        getattr(event.message, "out", False)
+    )
+    sender_id = getattr(event.message, "sender_id", None)
+    if my_id is not None and sender_id == my_id:
+        is_from_me = True
+
     for rule in matched:
         # For bot sources, only forward the bot's replies (incoming), never
         # the messages you send TO the bot (outgoing / your own messages).
-        if rule.get("source_type") == "bot" and getattr(event, "out", False):
+        if rule.get("source_type") == "bot" and is_from_me:
             continue
         text = event.message.message or ""
         if not matches_filters(text, rule):
