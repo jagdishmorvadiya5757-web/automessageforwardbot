@@ -11,5 +11,6 @@ COPY . .
 
 # The Telegram session file lives on a persistent volume mounted at /data
 ENV SESSION_PATH=/data/forwardflow_session
+ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "main.py"]
+CMD ["python", "-u", "main.py"]
