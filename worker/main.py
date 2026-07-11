@@ -455,8 +455,11 @@ async def forward_worker():
                 break
 
         forward_queue.task_done()
-        # Throttle between sends to stay under Telegram's flood limits.
-        await asyncio.sleep(FORWARD_DELAY)
+        # No artificial throttle by default. We only ever wait when Telegram
+        # returns a FloodWait above. Apply a delay here ONLY if the user set
+        # FORWARD_DELAY > 0 explicitly.
+        if FORWARD_DELAY > 0:
+            await asyncio.sleep(FORWARD_DELAY)
 
 
 async def main():
