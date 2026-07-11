@@ -420,6 +420,7 @@ async def on_message(event):
             "source": rule["source"],
             "destination": rule["destination"],
             "text": text,
+            "message": event.message,
             "msg_ref": str(event.message.id),
         })
         print(f"[queue] {rule['source']} -> {rule['destination']} (size {forward_queue.qsize()})")
