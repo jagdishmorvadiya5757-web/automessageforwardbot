@@ -33,6 +33,9 @@ login_ctx: dict = {"phone": None, "phone_code_hash": None}
 forwarding_started = False
 # Own account id, filled after login. Used to skip messages YOU send.
 my_id: int | None = None
+# Serial forward queue. Every send goes through this so we can throttle and,
+# on a FloodWait, wait instead of dropping the message.
+forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
 
 
 def normalize(entity: str) -> str:
