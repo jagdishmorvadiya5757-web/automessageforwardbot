@@ -439,9 +439,21 @@ async def forward_worker():
 
         while True:
             try:
-                await client.send_message(entity, job["text"])
+                message = job.get("message")
+                media = getattr(message, "media", None) if message else None
+                if media is not None:
+                    # Re-send the original media (photo/video/document/etc.) with
+                    # the original text as its caption. This copies the content
+                    # so the destination shows the image, not just the text.
+                    await client.send_file(
+                        entity,
+                        file=media,
+                        caption=job["text"] or "",
+                    )
+                else:
+                    await client.send_message(entity, job["text"])
                 await post_log(job["rule_id"], "forwarded", f"to {dest}", job["msg_ref"])
-                print(f"[fwd] {job['source']} -> {dest}")
+                print(f"[fwd] {job['source']} -> {dest}{' (media)' if media is not None else ''}")
                 break
             except FloodWaitError as e:
                 wait = float(getattr(e, "seconds", 0)) + FLOOD_WAIT_EXTRA
