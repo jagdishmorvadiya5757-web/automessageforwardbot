@@ -438,6 +438,19 @@ async def forward_worker():
         except Exception:
             entity = dest
 
+        # Per-rule delay: wait BEFORE forwarding so the delay is visible even
+        # for a single message. Falls back to the global FORWARD_DELAY.
+        try:
+            rule_delay = float(job.get("delay") or 0)
+        except (TypeError, ValueError):
+            rule_delay = 0.0
+        delay = rule_delay if rule_delay > 0 else FORWARD_DELAY
+        if delay > 0:
+            print(f"[delay] waiting {delay}s before forward (rule delay)")
+            await post_log(job["rule_id"], "waiting", f"delaying {delay}s before forward", job["msg_ref"])
+            await asyncio.sleep(delay)
+
+
         while True:
             try:
                 message = job.get("message")
