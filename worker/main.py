@@ -462,6 +462,7 @@ async def main():
     print(f"[worker] connected, syncing with {API_BASE_URL}")
     asyncio.create_task(heartbeat())
     asyncio.create_task(control_loop())
+    asyncio.create_task(forward_worker())
     # Stay alive without calling run_until_disconnected(), which would issue an
     # authenticated request and crash before the account is logged in. The
     # control loop drives login from the dashboard; once authorized, Telethon
