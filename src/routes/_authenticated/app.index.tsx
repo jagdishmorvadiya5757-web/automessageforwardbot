@@ -312,6 +312,14 @@ function RulesPage() {
                       {r.exclude_keywords.length > 0 && <>· exclude: {r.exclude_keywords.join(", ")}</>}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">
+                      {r.forwarded_count}{r.max_forward_count ? ` / ${r.max_forward_count}` : ""} forwarded
+                    </Badge>
+                    {r.max_forward_count && r.forwarded_count >= r.max_forward_count && (
+                      <Badge variant="secondary">auto off</Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -320,6 +328,9 @@ function RulesPage() {
                   />
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
                     <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => resetCount.mutate(r.id)}>
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => remove.mutate(r.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
