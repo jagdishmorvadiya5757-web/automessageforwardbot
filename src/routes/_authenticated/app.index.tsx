@@ -39,6 +39,7 @@ type Rule = {
   exclude_keywords: string[];
   forwarded_count: number;
   max_forward_count: number | null;
+  forward_delay: number;
 };
 type Channel = {
   chat_id: string;
