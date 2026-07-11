@@ -14,9 +14,13 @@ TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
+# Delay (seconds) between two forwards. Keeps us under Telegram's flood limits.
+FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "5"))
+# Extra safety seconds added on top of Telegram's requested FloodWait.
+FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-counted-bot-filter-v3"
+WORKER_VERSION = "2026-07-11-slow-queue-v4"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
