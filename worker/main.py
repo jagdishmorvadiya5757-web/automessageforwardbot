@@ -256,10 +256,20 @@ async def on_message(event):
     if not matched:
         return
 
+    # Detect messages sent BY you (outgoing). Telethon marks these with
+    # event.out, but for extra safety we also compare the sender id against
+    # your own account id.
+    is_from_me = bool(getattr(event, "out", False)) or bool(
+        getattr(event.message, "out", False)
+    )
+    sender_id = getattr(event.message, "sender_id", None)
+    if my_id is not None and sender_id == my_id:
+        is_from_me = True
+
     for rule in matched:
         # For bot sources, only forward the bot's replies (incoming), never
         # the messages you send TO the bot (outgoing / your own messages).
-        if rule.get("source_type") == "bot" and getattr(event, "out", False):
+        if rule.get("source_type") == "bot" and is_from_me:
             continue
         text = event.message.message or ""
         if not matches_filters(text, rule):
