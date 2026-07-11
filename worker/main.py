@@ -253,6 +253,40 @@ def source_keys_for_chat(chat) -> list[str]:
     return keys
 
 
+def is_bot_chat(chat, matched_rules: list[dict]) -> bool:
+    """True when the actual Telegram source is a bot chat.
+
+    Older/manual rules may have source_type saved as "channel", so do not rely
+    only on the dashboard value. The Telegram entity itself is the safest signal.
+    """
+    return bool(getattr(chat, "bot", False)) or any(
+        rule.get("source_type") == "bot" for rule in matched_rules
+    )
+
+
+async def is_message_from_me(event) -> bool:
+    """Detect messages sent by the logged-in account.
+
+    In bot PMs Telethon may surface sent-message updates slightly differently,
+    so check the event flags first, then compare sender id as a fallback.
+    """
+    if bool(getattr(event, "out", False)) or bool(getattr(event.message, "out", False)):
+        return True
+
+    sender_id = getattr(event.message, "sender_id", None)
+    if my_id is not None and sender_id == my_id:
+        return True
+
+    try:
+        sender = await event.get_sender()
+        if my_id is not None and getattr(sender, "id", None) == my_id:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 @client.on(events.NewMessage())
 async def on_message(event):
     chat = await event.get_chat()
@@ -263,21 +297,16 @@ async def on_message(event):
     if not matched:
         return
 
-    # Detect messages sent BY you (outgoing). Telethon marks these with
-    # event.out, but for extra safety we also compare the sender id against
-    # your own account id.
-    is_from_me = bool(getattr(event, "out", False)) or bool(
-        getattr(event.message, "out", False)
-    )
-    sender_id = getattr(event.message, "sender_id", None)
-    if my_id is not None and sender_id == my_id:
-        is_from_me = True
+    bot_source = is_bot_chat(chat, matched)
+    is_from_me = await is_message_from_me(event)
+
+    # In bot chats, the message you type is also a NewMessage update. It must
+    # never be forwarded; only the incoming bot response should be forwarded.
+    if bot_source and is_from_me:
+        print(f"[skip] user message to bot: {getattr(event.message, 'id', '')}")
+        return
 
     for rule in matched:
-        # For bot sources, only forward the bot's replies (incoming), never
-        # the messages you send TO the bot (outgoing / your own messages).
-        if rule.get("source_type") == "bot" and is_from_me:
-            continue
         text = event.message.message or ""
         if not matches_filters(text, rule):
             await post_log(rule["id"], "skipped", "filtered out by keywords", str(event.message.id))
