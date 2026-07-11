@@ -5,7 +5,7 @@ import { resolveWorkerUser } from "@/integrations/supabase/worker-auth.server";
 const logSchema = z.object({
   rule_id: z.string().uuid().nullable().optional(),
   source_msg_ref: z.string().max(500).nullable().optional(),
-  status: z.enum(["forwarded", "skipped", "error"]),
+  status: z.enum(["forwarded", "skipped", "error", "waiting"]),
   detail: z.string().max(2000).nullable().optional(),
 });
 
@@ -35,6 +35,17 @@ export const Route = createFileRoute("/api/public/worker/logs")({
           detail: parsed.data.detail ?? null,
         });
         if (error) return new Response(error.message, { status: 500 });
+
+        // Count every forwarded message server-side so the dashboard total is
+        // always accurate regardless of the worker version. Auto-disables the
+        // rule once its limit is reached.
+        if (parsed.data.status === "forwarded" && parsed.data.rule_id) {
+          await supabaseAdmin.rpc("record_forwarded_count", {
+            _rule_id: parsed.data.rule_id,
+            _user_id: auth.userId,
+          });
+        }
+
         return Response.json({ ok: true });
       },
     },

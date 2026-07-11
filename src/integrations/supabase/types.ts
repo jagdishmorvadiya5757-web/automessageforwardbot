@@ -256,6 +256,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_forwarded_count: {
+        Args: { _rule_id: string; _user_id: string }
+        Returns: {
+          enabled: boolean
+          forwarded_count: number
+          max_forward_count: number
+        }[]
+      }
       release_forwarding_slot: {
         Args: { _rule_id: string; _user_id: string }
         Returns: {
@@ -276,7 +284,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       endpoint_type: "channel" | "bot"
-      forward_status: "forwarded" | "skipped" | "error"
+      forward_status: "forwarded" | "skipped" | "error" | "waiting"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -406,7 +414,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       endpoint_type: ["channel", "bot"],
-      forward_status: ["forwarded", "skipped", "error"],
+      forward_status: ["forwarded", "skipped", "error", "waiting"],
     },
   },
 } as const
