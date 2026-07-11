@@ -26,6 +26,8 @@ rules_by_source: dict[str, list[dict]] = {}
 # Telegram login bookkeeping
 login_ctx: dict = {"phone": None, "phone_code_hash": None}
 forwarding_started = False
+# Own account id, filled after login. Used to skip messages YOU send.
+my_id: int | None = None
 
 
 def normalize(entity: str) -> str:
