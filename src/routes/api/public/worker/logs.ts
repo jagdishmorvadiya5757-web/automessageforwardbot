@@ -36,16 +36,6 @@ export const Route = createFileRoute("/api/public/worker/logs")({
         });
         if (error) return new Response(error.message, { status: 500 });
 
-        // Count every forwarded message server-side so the dashboard total is
-        // always accurate regardless of the worker version. Auto-disables the
-        // rule once its limit is reached.
-        if (parsed.data.status === "forwarded" && parsed.data.rule_id) {
-          await supabaseAdmin.rpc("record_forwarded_count", {
-            _rule_id: parsed.data.rule_id,
-            _user_id: auth.userId,
-          });
-        }
-
         return Response.json({ ok: true });
       },
     },

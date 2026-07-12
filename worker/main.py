@@ -23,7 +23,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-11-per-rule-delay-v8"
+WORKER_VERSION = "2026-07-12-serial-delay-count-botfix-v9"
 
 SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
 client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
@@ -372,7 +372,7 @@ async def is_message_from_me(event) -> bool:
     return False
 
 
-@client.on(events.NewMessage())
+@client.on(events.NewMessage(incoming=True))
 async def on_message(event):
     chat = await event.get_chat()
     keys = source_keys_for_chat(chat)
@@ -438,18 +438,14 @@ async def forward_worker():
         except Exception:
             entity = dest
 
-        # Per-rule delay: wait BEFORE forwarding so the delay is visible even
-        # for a single message. Falls back to the global FORWARD_DELAY.
+        # Per-rule delay: this is the gap AFTER a forward before the next queue
+        # item starts. That gives true "5 seconds between messages" behavior
+        # for bursts instead of delaying the first item and then sending fast.
         try:
             rule_delay = float(job.get("delay") or 0)
         except (TypeError, ValueError):
             rule_delay = 0.0
         delay = rule_delay if rule_delay > 0 else FORWARD_DELAY
-        if delay > 0:
-            print(f"[delay] waiting {delay}s before forward (rule delay)")
-            await post_log(job["rule_id"], "waiting", f"delaying {delay}s before forward", job["msg_ref"])
-            await asyncio.sleep(delay)
-
 
         while True:
             try:
@@ -482,6 +478,10 @@ async def forward_worker():
                 break
 
         forward_queue.task_done()
+        if delay > 0:
+            print(f"[delay] waiting {delay}s before next forward (rule delay)")
+            await post_log(job["rule_id"], "waiting", f"delaying {delay}s before next forward", job["msg_ref"])
+            await asyncio.sleep(delay)
 
 
 
