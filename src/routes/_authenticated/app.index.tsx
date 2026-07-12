@@ -80,7 +80,7 @@ function RulesPage() {
       if (error) throw error;
       return data as Rule[];
     },
-    refetchInterval: 5000,
+    refetchInterval: 2000,
   });
 
   const { data: channels = [] } = useQuery({
