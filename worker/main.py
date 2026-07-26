@@ -1,44 +1,46 @@
+"""ForwardFlow multi-user worker (v10).
+
+One process runs many Telegram accounts. Each signed-up user with an active
+subscription and a saved Telegram session gets a dedicated TelegramClient.
+The worker is stateless across restarts: sessions live in the DB (encrypted)
+and are pulled on-demand.
+
+Auth model: the worker holds one WORKER_TOKEN (master token). Every API
+call carries an `X-User-Id` header to tell the backend which user the call
+is acting for.
+"""
+from __future__ import annotations
+
 import asyncio
 import os
+from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.errors import FloodWaitError, RPCError, SessionPasswordNeededError
+from telethon.sessions import StringSession
 
 load_dotenv()
 
 API_BASE_URL = os.environ["API_BASE_URL"].rstrip("/")
-WORKER_TOKEN = os.environ["WORKER_TOKEN"]
+WORKER_TOKEN = os.environ["WORKER_TOKEN"]  # this is now the MASTER token
 TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
-# Delay (seconds) between two forwards. Default 0 => no artificial delay;
-# messages forward immediately. A delay is only ever applied when Telegram
-# itself returns a FloodWait (see forward_worker). Set >0 only if you want a
-# permanent throttle.
+USERS_POLL_INTERVAL = int(os.environ.get("USERS_POLL_INTERVAL", "20"))
 FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
-# Extra safety seconds added on top of Telegram's requested FloodWait.
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
-HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-12-serial-delay-count-botfix-v9"
+BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
+WORKER_VERSION = "2026-07-26-multiuser-v10"
 
-SESSION_PATH = os.environ.get("SESSION_PATH", "forwardflow_session")
-client = TelegramClient(SESSION_PATH, TG_API_ID, TG_API_HASH)
 http = httpx.AsyncClient(timeout=30)
 
-# In-memory rule cache: { source_key: [rules] }
-rules_by_source: dict[str, list[dict]] = {}
-# Telegram login bookkeeping
-login_ctx: dict = {"phone": None, "phone_code_hash": None}
-forwarding_started = False
-# Own account id, filled after login. Used to skip messages YOU send.
-my_id: int | None = None
-# Serial forward queue. Every send goes through this so we can throttle and,
-# on a FloodWait, wait instead of dropping the message.
-forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
+
+def user_headers(user_id: str) -> dict:
+    return {**BASE_HEADERS, "X-User-Id": user_id}
 
 
 def normalize(entity: str) -> str:
@@ -46,115 +48,148 @@ def normalize(entity: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Dashboard sync helpers
+# Per-user runtime state
 # ---------------------------------------------------------------------------
-async def get_login_state() -> dict:
+class UserRuntime:
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+        self.client: Optional[TelegramClient] = None
+        self.rules_by_source: dict[str, list[dict]] = {}
+        self.my_id: Optional[int] = None
+        self.forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
+        self.login_ctx: dict = {"phone": None, "phone_code_hash": None}
+        self.forwarding_started = False
+        self._tasks: list[asyncio.Task] = []
+
+    async def close(self):
+        for t in self._tasks:
+            t.cancel()
+        if self.client:
+            try:
+                await self.client.disconnect()
+            except Exception:
+                pass
+
+
+users: dict[str, UserRuntime] = {}
+
+
+# ---------------------------------------------------------------------------
+# API helpers (all user-scoped)
+# ---------------------------------------------------------------------------
+async def api_get(path: str, user_id: Optional[str] = None) -> Optional[dict]:
     try:
-        r = await http.get(f"{API_BASE_URL}/api/public/worker/login-state", headers=HEADERS)
+        headers = user_headers(user_id) if user_id else BASE_HEADERS
+        r = await http.get(f"{API_BASE_URL}{path}", headers=headers)
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        print(f"[login] state fetch failed: {e}")
-        return {}
+        print(f"[api] GET {path} failed: {e}")
+        return None
 
 
-async def post_login_status(status: str, detail: str | None = None, pending_action=None):
+async def api_post(path: str, user_id: Optional[str], body: dict) -> Optional[dict]:
     try:
-        await http.post(
-            f"{API_BASE_URL}/api/public/worker/login-status",
-            headers=HEADERS,
-            json={"status": status, "detail": detail, "pending_action": pending_action},
-        )
-    except Exception as e:
-        print(f"[login] status post failed: {e}")
-
-
-async def fetch_rules() -> list[dict]:
-    try:
-        r = await http.get(f"{API_BASE_URL}/api/public/worker/rules", headers=HEADERS)
+        headers = user_headers(user_id) if user_id else BASE_HEADERS
+        r = await http.post(f"{API_BASE_URL}{path}", headers=headers, json=body)
         r.raise_for_status()
-        return r.json().get("rules", [])
+        return r.json()
     except Exception as e:
-        print(f"[rules] fetch failed: {e}")
-        return []
+        print(f"[api] POST {path} failed: {e}")
+        return None
 
 
-async def post_log(rule_id, status, detail, ref=None):
+async def api_delete(path: str, user_id: str) -> Optional[dict]:
     try:
-        await http.post(
-            f"{API_BASE_URL}/api/public/worker/logs",
-            headers=HEADERS,
-            json={"rule_id": rule_id, "status": status, "detail": detail, "source_msg_ref": ref},
-        )
-    except Exception as e:
-        print(f"[log] post failed: {e}")
-
-
-async def reserve_forwarding_slot(rule_id: str) -> dict:
-    try:
-        r = await http.post(
-            f"{API_BASE_URL}/api/public/worker/forward-slots",
-            headers=HEADERS,
-            json={"rule_id": rule_id, "action": "reserve"},
+        r = await http.request(
+            "DELETE", f"{API_BASE_URL}{path}", headers=user_headers(user_id)
         )
         r.raise_for_status()
-        return r.json().get("result") or {"allowed": False}
+        return r.json()
     except Exception as e:
-        print(f"[limit] reserve failed: {e}")
-        return {"allowed": False, "error": str(e)}
+        print(f"[api] DELETE {path} failed: {e}")
+        return None
 
 
-async def release_forwarding_slot(rule_id: str):
-    try:
-        r = await http.post(
-            f"{API_BASE_URL}/api/public/worker/forward-slots",
-            headers=HEADERS,
-            json={"rule_id": rule_id, "action": "release"},
-        )
-        r.raise_for_status()
-    except Exception as e:
-        print(f"[limit] release failed: {e}")
+async def post_log(user_id: str, rule_id, status, detail, ref=None):
+    await api_post(
+        "/api/public/worker/logs",
+        user_id,
+        {"rule_id": rule_id, "status": status, "detail": detail, "source_msg_ref": ref},
+    )
 
 
-async def push_channels(channels: list[dict]):
-    try:
-        r = await http.post(
-            f"{API_BASE_URL}/api/public/worker/channels",
-            headers=HEADERS,
-            json={"channels": channels},
-        )
-        r.raise_for_status()
-        print(f"[channels] pushed {len(channels)} chat(s)")
-    except Exception as e:
-        print(f"[channels] push failed: {e}")
+async def post_login_status(user_id: str, status: str, detail: str | None = None, pending_action=None):
+    await api_post(
+        "/api/public/worker/login-status",
+        user_id,
+        {"status": status, "detail": detail, "pending_action": pending_action},
+    )
 
 
-async def heartbeat():
-    while True:
-        try:
-            await http.post(f"{API_BASE_URL}/api/public/worker/heartbeat", headers=HEADERS, json={})
-        except Exception as e:
-            print(f"[heartbeat] failed: {e}")
-        await asyncio.sleep(60)
+async def reserve_forwarding_slot(user_id: str, rule_id: str) -> dict:
+    result = await api_post(
+        "/api/public/worker/forward-slots",
+        user_id,
+        {"rule_id": rule_id, "action": "reserve"},
+    )
+    if not result:
+        return {"allowed": False}
+    return result.get("result") or {"allowed": False}
+
+
+async def release_forwarding_slot(user_id: str, rule_id: str):
+    await api_post(
+        "/api/public/worker/forward-slots",
+        user_id,
+        {"rule_id": rule_id, "action": "release"},
+    )
+
+
+async def push_channels(user_id: str, channels: list[dict]):
+    await api_post("/api/public/worker/channels", user_id, {"channels": channels})
+
+
+async def save_session(user_id: str, session_string: str, phone: Optional[str]):
+    await api_post(
+        "/api/public/worker/session",
+        user_id,
+        {"session_string": session_string, "phone": phone or ""},
+    )
+
+
+async def load_session(user_id: str) -> tuple[Optional[str], Optional[str], str]:
+    data = await api_get("/api/public/worker/session", user_id)
+    if not data:
+        return None, None, "logged_out"
+    return data.get("session_string"), data.get("phone"), data.get("status", "logged_out")
+
+
+async def clear_session(user_id: str):
+    await api_delete("/api/public/worker/session", user_id)
 
 
 # ---------------------------------------------------------------------------
-# Telegram login state machine (driven by the dashboard)
+# Per-user Telegram plumbing
 # ---------------------------------------------------------------------------
-async def sync_channels():
+async def sync_channels(rt: UserRuntime):
+    if not rt.client:
+        return
     channels = []
-    async for dialog in client.iter_dialogs():
+    async for dialog in rt.client.iter_dialogs():
         entity = dialog.entity
         if dialog.is_channel:
             broadcast = getattr(entity, "broadcast", False)
             kind = "channel" if broadcast else "group"
-            can_post = (not broadcast) or bool(getattr(entity, "admin_rights", None)) or bool(getattr(entity, "creator", False))
+            can_post = (not broadcast) or bool(getattr(entity, "admin_rights", None)) or bool(
+                getattr(entity, "creator", False)
+            )
         elif dialog.is_group:
             kind, can_post = "group", True
         elif getattr(entity, "bot", False):
             kind, can_post = "bot", True
         else:
-            continue  # skip private user chats
+            continue
         channels.append({
             "chat_id": str(dialog.id),
             "title": (dialog.name or "Untitled")[:256],
@@ -162,10 +197,10 @@ async def sync_channels():
             "kind": kind,
             "can_post": can_post,
         })
-    await push_channels(channels)
+    await push_channels(rt.user_id, channels)
 
 
-async def handle_login(state: dict):
+async def handle_login(rt: UserRuntime, state: dict):
     action = state.get("pending_action")
     if not action:
         return
@@ -173,102 +208,107 @@ async def handle_login(state: dict):
     if action == "request_code":
         phone = state.get("phone")
         if not phone:
-            await post_login_status("error", "No phone number provided")
+            await post_login_status(rt.user_id, "error", "No phone provided")
             return
         try:
-            sent = await client.send_code_request(phone)
-            login_ctx["phone"] = phone
-            login_ctx["phone_code_hash"] = sent.phone_code_hash
-            await post_login_status("awaiting_code")
-            print("[login] code requested")
+            sent = await rt.client.send_code_request(phone)
+            rt.login_ctx["phone"] = phone
+            rt.login_ctx["phone_code_hash"] = sent.phone_code_hash
+            await post_login_status(rt.user_id, "awaiting_code")
         except Exception as e:
-            await post_login_status("error", str(e))
+            await post_login_status(rt.user_id, "error", str(e))
 
     elif action == "submit_code":
         code = state.get("code")
         try:
-            await client.sign_in(
-                phone=login_ctx.get("phone") or state.get("phone"),
+            await rt.client.sign_in(
+                phone=rt.login_ctx.get("phone") or state.get("phone"),
                 code=code,
-                phone_code_hash=login_ctx.get("phone_code_hash"),
+                phone_code_hash=rt.login_ctx.get("phone_code_hash"),
             )
-            await post_login_status("logged_in")
-            print("[login] signed in")
-            await sync_channels()
+            session_string = rt.client.session.save()
+            await save_session(rt.user_id, session_string, rt.login_ctx.get("phone") or state.get("phone"))
+            await post_login_status(rt.user_id, "logged_in")
+            await sync_channels(rt)
         except SessionPasswordNeededError:
-            await post_login_status("password_needed")
+            await post_login_status(rt.user_id, "password_needed")
         except Exception as e:
-            await post_login_status("error", str(e))
+            await post_login_status(rt.user_id, "error", str(e))
 
     elif action == "submit_password":
         password = state.get("two_fa_password")
         try:
-            await client.sign_in(password=password)
-            await post_login_status("logged_in")
-            print("[login] signed in with 2FA")
-            await sync_channels()
+            await rt.client.sign_in(password=password)
+            session_string = rt.client.session.save()
+            await save_session(rt.user_id, session_string, rt.login_ctx.get("phone"))
+            await post_login_status(rt.user_id, "logged_in")
+            await sync_channels(rt)
         except Exception as e:
-            await post_login_status("error", str(e))
+            await post_login_status(rt.user_id, "error", str(e))
 
     elif action == "logout":
         try:
-            await client.log_out()
-        except Exception as e:
-            print(f"[login] logout error: {e}")
-        await post_login_status("logged_out")
-        print("[login] logged out")
+            await rt.client.log_out()
+        except Exception:
+            pass
+        await clear_session(rt.user_id)
+        await post_login_status(rt.user_id, "logged_out")
 
 
-async def control_loop():
-    """Continuously reconcile Telegram session with the dashboard's requests."""
-    global forwarding_started, my_id
+async def control_loop_for(rt: UserRuntime):
+    """Login state machine + rule polling for one user."""
     while True:
-        authorized = await client.is_user_authorized()
-        state = await get_login_state()
+        try:
+            authorized = await rt.client.is_user_authorized()
+            state = await api_get("/api/public/worker/login-state", rt.user_id) or {}
 
-        if not authorized:
-            await handle_login(state)
-        else:
-            if my_id is None:
-                try:
-                    me = await client.get_me()
-                    my_id = me.id
-                    print(f"[worker] logged in as id={my_id}")
-                except Exception as e:
-                    print(f"[worker] get_me failed: {e}")
-            action = state.get("pending_action")
-            if action == "logout":
-                await handle_login(state)
-            elif action == "sync_channels":
-                await post_login_status("logged_in")  # clears pending_action + secrets
-                await sync_channels()
-            elif state.get("status") != "logged_in":
-                await post_login_status("logged_in")
+            if not authorized:
+                await handle_login(rt, state)
+            else:
+                if rt.my_id is None:
+                    try:
+                        me = await rt.client.get_me()
+                        rt.my_id = me.id
+                        print(f"[{rt.user_id[:8]}] logged in as id={rt.my_id}")
+                    except Exception as e:
+                        print(f"[{rt.user_id[:8]}] get_me failed: {e}")
 
-            if not forwarding_started:
-                forwarding_started = True
-                asyncio.create_task(refresh_rules())
-                print("[worker] forwarding active")
+                action = state.get("pending_action")
+                if action == "logout":
+                    await handle_login(rt, state)
+                    return  # runtime will be reaped by supervisor
+                elif action == "sync_channels":
+                    await post_login_status(rt.user_id, "logged_in")
+                    await sync_channels(rt)
+                elif state.get("status") != "logged_in":
+                    await post_login_status(rt.user_id, "logged_in")
+
+                if not rt.forwarding_started:
+                    rt.forwarding_started = True
+                    rt._tasks.append(asyncio.create_task(refresh_rules(rt)))
+                    rt._tasks.append(asyncio.create_task(forward_worker(rt)))
+                    print(f"[{rt.user_id[:8]}] forwarding active")
+        except Exception as e:
+            print(f"[{rt.user_id[:8]}] control loop error: {e}")
 
         await asyncio.sleep(LOGIN_POLL_INTERVAL)
 
 
-# ---------------------------------------------------------------------------
-# Forwarding
-# ---------------------------------------------------------------------------
-async def refresh_rules():
-    global rules_by_source
+async def refresh_rules(rt: UserRuntime):
     while True:
-        rules = await fetch_rules()
+        data = await api_get("/api/public/worker/rules", rt.user_id) or {}
+        rules = data.get("rules", [])
         grouped: dict[str, list[dict]] = {}
         for rule in rules:
             key = normalize(rule["source"])
             grouped.setdefault(key, []).append(rule)
-        rules_by_source = grouped
-        print(f"[rules] loaded {len(rules)} active rule(s)")
+        rt.rules_by_source = grouped
         await asyncio.sleep(POLL_INTERVAL)
 
 
+# ---------------------------------------------------------------------------
+# Message filtering / forwarding
+# ---------------------------------------------------------------------------
 def matches_filters(text: str, rule: dict) -> bool:
     text_l = (text or "").lower()
     include = [k.lower() for k in rule.get("include_keywords", [])]
@@ -290,8 +330,7 @@ def source_keys_for_chat(chat) -> list[str]:
     return keys
 
 
-def peer_id_value(peer) -> int | None:
-    """Return the numeric id from Telethon Peer/User-like objects when present."""
+def peer_id_value(peer) -> Optional[int]:
     if peer is None:
         return None
     for attr in ("user_id", "channel_id", "chat_id", "id"):
@@ -307,7 +346,7 @@ def peer_id_value(peer) -> int | None:
         return None
 
 
-def same_user_id(value, expected: int | None) -> bool:
+def same_user_id(value, expected: Optional[int]) -> bool:
     if value is None or expected is None:
         return False
     try:
@@ -317,17 +356,12 @@ def same_user_id(value, expected: int | None) -> bool:
 
 
 def is_bot_chat(chat, matched_rules: list[dict]) -> bool:
-    """True when the actual Telegram source is a bot chat.
-
-    Older/manual rules may have source_type saved as "channel", so do not rely
-    only on the dashboard value. The Telegram entity itself is the safest signal.
-    """
     return bool(getattr(chat, "bot", False)) or any(
         rule.get("source_type") == "bot" for rule in matched_rules
     )
 
 
-def message_sender_id(event) -> int | None:
+def message_sender_id(event) -> Optional[int]:
     message = event.message
     sender_id = getattr(event, "sender_id", None) or getattr(message, "sender_id", None)
     if sender_id is not None:
@@ -338,109 +372,81 @@ def message_sender_id(event) -> int | None:
     return peer_id_value(getattr(message, "from_id", None))
 
 
-async def is_message_from_me(event) -> bool:
-    """Detect messages sent by the logged-in account.
-
-    In bot PMs Telethon may surface sent-message updates slightly differently,
-    so check the event flags first, then compare sender id as a fallback.
-    """
+async def is_message_from_me(event, my_id: Optional[int]) -> bool:
     message = event.message
     original_update = getattr(event, "original_update", None)
-
     if (
         bool(getattr(event, "out", False))
         or bool(getattr(message, "out", False))
         or bool(getattr(original_update, "out", False))
     ):
         return True
-
     sender_id = getattr(event, "sender_id", None) or getattr(message, "sender_id", None)
     if same_user_id(sender_id, my_id):
         return True
-
     from_id = peer_id_value(getattr(message, "from_id", None))
     if same_user_id(from_id, my_id):
         return True
-
     try:
         sender = await event.get_sender()
         if same_user_id(getattr(sender, "id", None), my_id):
             return True
     except Exception:
         pass
-
     return False
 
 
-@client.on(events.NewMessage(incoming=True))
-async def on_message(event):
-    chat = await event.get_chat()
-    keys = source_keys_for_chat(chat)
-    matched = []
-    for k in keys:
-        matched.extend(rules_by_source.get(k, []))
-    if not matched:
-        return
+def make_message_handler(rt: UserRuntime):
+    async def on_message(event):
+        chat = await event.get_chat()
+        keys = source_keys_for_chat(chat)
+        matched = []
+        for k in keys:
+            matched.extend(rt.rules_by_source.get(k, []))
+        if not matched:
+            return
 
-    is_from_me = await is_message_from_me(event)
-    bot_source = is_bot_chat(chat, matched)
+        is_from_me = await is_message_from_me(event, rt.my_id)
+        bot_source = is_bot_chat(chat, matched)
 
-    # For bot private chats, only the bot's own incoming replies should pass.
-    # User prompts sent to the bot can sometimes arrive without a reliable
-    # outgoing flag, so compare the sender with the bot chat id too.
-    if bot_source and not same_user_id(message_sender_id(event), getattr(chat, "id", None)):
-        print(f"[skip] non-bot sender in bot chat: {getattr(event.message, 'id', '')}")
-        return
+        if bot_source and not same_user_id(message_sender_id(event), getattr(chat, "id", None)):
+            return
+        if is_from_me:
+            return
 
-    # Messages typed by the logged-in Telegram account are outgoing updates.
-    # They must never be forwarded; this is especially important for bot PMs,
-    # where only the bot's incoming reply should be forwarded.
-    if is_from_me:
-        print(f"[skip] own/outgoing message: {getattr(event.message, 'id', '')}")
-        return
+        for rule in matched:
+            text = event.message.message or ""
+            if not matches_filters(text, rule):
+                await post_log(rt.user_id, rule["id"], "skipped", "filtered by keywords", str(event.message.id))
+                continue
 
-    for rule in matched:
-        text = event.message.message or ""
-        if not matches_filters(text, rule):
-            await post_log(rule["id"], "skipped", "filtered out by keywords", str(event.message.id))
-            continue
+            slot = await reserve_forwarding_slot(rt.user_id, rule["id"])
+            if not slot.get("allowed"):
+                detail = "limit reached; rule off" if slot.get("disabled") else "disabled or limit reached"
+                await post_log(rt.user_id, rule["id"], "skipped", detail, str(event.message.id))
+                continue
 
-        slot = await reserve_forwarding_slot(rule["id"])
-        if not slot.get("allowed"):
-            detail = "forward limit reached; rule turned off" if slot.get("disabled") else "rule disabled or limit reached"
-            await post_log(rule["id"], "skipped", detail, str(event.message.id))
-            print(f"[limit] skipped {rule['source']}: {detail}")
-            continue
-
-        # Queue the send instead of firing it inline. The forward_worker sends
-        # jobs one at a time with a delay, and on a FloodWait it waits and
-        # retries the SAME job so no message is ever dropped.
-        await forward_queue.put({
-            "rule_id": rule["id"],
-            "source": rule["source"],
-            "destination": rule["destination"],
-            "text": text,
-            "message": event.message,
-            "msg_ref": str(event.message.id),
-            "delay": rule.get("forward_delay") or 0,
-        })
-        print(f"[queue] {rule['source']} -> {rule['destination']} (size {forward_queue.qsize()})")
+            await rt.forward_queue.put({
+                "rule_id": rule["id"],
+                "source": rule["source"],
+                "destination": rule["destination"],
+                "text": text,
+                "message": event.message,
+                "msg_ref": str(event.message.id),
+                "delay": rule.get("forward_delay") or 0,
+            })
+    return on_message
 
 
-async def forward_worker():
-    """Serial sender: one message at a time, throttled, retried on FloodWait."""
-    print(f"[queue] worker started (delay {FORWARD_DELAY}s)")
+async def forward_worker(rt: UserRuntime):
     while True:
-        job = await forward_queue.get()
+        job = await rt.forward_queue.get()
         dest = job["destination"]
         try:
             entity = dest if dest.startswith("@") else int(dest) if dest.lstrip("-").isdigit() else dest
         except Exception:
             entity = dest
 
-        # Per-rule delay: this is the gap AFTER a forward before the next queue
-        # item starts. That gives true "5 seconds between messages" behavior
-        # for bursts instead of delaying the first item and then sending fast.
         try:
             rule_delay = float(job.get("delay") or 0)
         except (TypeError, ValueError):
@@ -452,50 +458,102 @@ async def forward_worker():
                 message = job.get("message")
                 media = getattr(message, "media", None) if message else None
                 if media is not None:
-                    # Re-send the original media (photo/video/document/etc.) with
-                    # the original text as its caption. This copies the content
-                    # so the destination shows the image, not just the text.
-                    await client.send_file(
-                        entity,
-                        file=media,
-                        caption=job["text"] or "",
-                    )
+                    await rt.client.send_file(entity, file=media, caption=job["text"] or "")
                 else:
-                    await client.send_message(entity, job["text"])
-                await post_log(job["rule_id"], "forwarded", f"to {dest}", job["msg_ref"])
-                print(f"[fwd] {job['source']} -> {dest}{' (media)' if media is not None else ''}")
+                    await rt.client.send_message(entity, job["text"])
+                await post_log(rt.user_id, job["rule_id"], "forwarded", f"to {dest}", job["msg_ref"])
                 break
             except FloodWaitError as e:
                 wait = float(getattr(e, "seconds", 0)) + FLOOD_WAIT_EXTRA
-                await post_log(job["rule_id"], "waiting", f"flood limit, retry in {int(wait)}s", job["msg_ref"])
-                print(f"[wait] flood limit hit, sleeping {int(wait)}s before retry")
+                await post_log(rt.user_id, job["rule_id"], "waiting", f"flood limit, retry {int(wait)}s", job["msg_ref"])
                 await asyncio.sleep(wait)
-                # loop again to retry the same job — message is NOT dropped
             except (RPCError, Exception) as e:
-                await release_forwarding_slot(job["rule_id"])
-                await post_log(job["rule_id"], "error", str(e), job["msg_ref"])
-                print(f"[fwd] error: {e}")
+                await release_forwarding_slot(rt.user_id, job["rule_id"])
+                await post_log(rt.user_id, job["rule_id"], "error", str(e), job["msg_ref"])
                 break
 
-        forward_queue.task_done()
+        rt.forward_queue.task_done()
         if delay > 0:
-            print(f"[delay] waiting {delay}s before next forward (rule delay)")
-            await post_log(job["rule_id"], "waiting", f"delaying {delay}s before next forward", job["msg_ref"])
+            await post_log(rt.user_id, job["rule_id"], "waiting", f"delaying {delay}s", job["msg_ref"])
             await asyncio.sleep(delay)
 
 
+# ---------------------------------------------------------------------------
+# Supervisor: adds/removes UserRuntimes based on the API's active-user list.
+# ---------------------------------------------------------------------------
+async def spawn_user(user_id: str):
+    """Create a runtime + connected TelegramClient for one user."""
+    session_str, phone, _status = await load_session(user_id)
+    tg_session = StringSession(session_str) if session_str else StringSession()
+
+    client = TelegramClient(tg_session, TG_API_ID, TG_API_HASH)
+    await client.connect()
+
+    rt = UserRuntime(user_id)
+    rt.client = client
+    rt.login_ctx["phone"] = phone
+    client.add_event_handler(make_message_handler(rt), events.NewMessage(incoming=True))
+    users[user_id] = rt
+
+    # control loop drives login + starts forwarding tasks once authorized
+    rt._tasks.append(asyncio.create_task(control_loop_for(rt)))
+    print(f"[supervisor] spawned user {user_id[:8]}")
+
+
+async def reap_user(user_id: str):
+    rt = users.pop(user_id, None)
+    if rt:
+        await rt.close()
+        print(f"[supervisor] reaped user {user_id[:8]}")
+
+
+async def supervisor():
+    """Sync the local `users` dict with the API's active-user list."""
+    while True:
+        data = await api_get("/api/public/worker/users") or {}
+        wanted = {u["user_id"] for u in data.get("users", [])}
+
+        # Also include users that need first-time login: they have no session
+        # yet, but if they don't appear in `wanted` because /users only returns
+        # users WITH a session, they can't ever login. We'll drive first-login
+        # through a separate signal: the dashboard writes their user_id into
+        # telegram_sessions (with status='logged_out') as soon as they visit
+        # /app/login. Until that's added, admins can nudge by inserting a row.
+
+        for uid in list(users.keys()):
+            if uid not in wanted:
+                await reap_user(uid)
+        for uid in wanted:
+            if uid not in users:
+                try:
+                    await spawn_user(uid)
+                except Exception as e:
+                    print(f"[supervisor] spawn failed {uid[:8]}: {e}")
+
+        await asyncio.sleep(USERS_POLL_INTERVAL)
+
+
+async def heartbeat():
+    while True:
+        try:
+            # heartbeat needs a user_id header now; skip if no users yet
+            if users:
+                any_user = next(iter(users))
+                await http.post(
+                    f"{API_BASE_URL}/api/public/worker/heartbeat",
+                    headers=user_headers(any_user),
+                    json={},
+                )
+        except Exception as e:
+            print(f"[heartbeat] {e}")
+        await asyncio.sleep(60)
+
 
 async def main():
-    await client.connect()
     print(f"[worker] version {WORKER_VERSION}")
     print(f"[worker] connected, syncing with {API_BASE_URL}")
     asyncio.create_task(heartbeat())
-    asyncio.create_task(control_loop())
-    asyncio.create_task(forward_worker())
-    # Stay alive without calling run_until_disconnected(), which would issue an
-    # authenticated request and crash before the account is logged in. The
-    # control loop drives login from the dashboard; once authorized, Telethon
-    # delivers NewMessage updates over the live connection.
+    asyncio.create_task(supervisor())
     while True:
         await asyncio.sleep(3600)
 
