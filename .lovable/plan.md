@@ -1,71 +1,89 @@
-# Telegram Auto-Forwarding Bot — Control Plane + External Worker
+# Phase 1 — Multi-User Worker + 3-Day Auto Trial
 
-## The architecture (important)
+Goal: Ek hi centralized worker (Oracle pe jo chal raha hai) ab sirf aapka account nahi, **har signed-up user ka Telegram account** handle karega. User sirf dashboard pe login → phone verify → rule add → forwarding chalu. Worker ka koi kaam user nahi karega.
 
-Because you chose the **userbot** method (read from any channel without being an admin), the forwarding engine must run as a persistent MTProto process. Lovable's edge backend cannot host that. So the system is split in two:
+---
 
-```text
-┌─────────────────────────────┐        ┌──────────────────────────────┐
-│  LOVABLE APP (this project)  │        │  YOUR SERVER (external, VPS) │
-│  - Web dashboard             │  HTTPS │  - Python + Telethon userbot │
-│  - User login/accounts       │◄──────►│  - Logs in with YOUR account │
-│  - Forwarding rules DB       │  pull  │  - Reads rules via API       │
-│  - Forwarding logs/status    │  rules │  - Forwards messages         │
-│  - Secure sync API endpoint  │  push  │  - Reports status/logs back  │
-└─────────────────────────────┘  logs  └──────────────────────────────┘
-```
+## 1. Database changes (migration)
 
-Lovable builds the left box entirely and provides the worker script for the right box. You run the worker on any always-on machine.
+**`subscriptions` table (naya):**
+- `user_id` (unique)
+- `plan` (`trial` / `pro` / `business` / `expired`)
+- `trial_ends_at`, `subscription_ends_at`
+- `is_active` (boolean)
 
-## What Lovable will build
+**Trigger on new signup:** Har naye user ke liye auto-insert `plan='trial'`, `trial_ends_at = now() + 3 days`, `is_active=true`.
 
-### 1. Backend (Lovable Cloud)
-Enable Lovable Cloud for database + auth. Tables:
-- `profiles` — one row per user (auto-created on signup).
-- `forwarding_rules` — `id`, `user_id`, `source` (channel/bot identifier), `destination` (channel/bot identifier), `source_type`, `destination_type`, `enabled`, `filters` (optional keyword include/exclude), `created_at`.
-- `forwarding_logs` — `id`, `rule_id`, `user_id`, `source_msg_ref`, `status` (forwarded/skipped/error), `detail`, `created_at`.
-- `worker_tokens` — per-user secret token the external worker uses to authenticate to the sync API (generated in the dashboard, hashed at rest).
-- `user_roles` + `has_role()` (separate table, security-definer) for admin.
+**`telegram_sessions` table (naya, server-only):**
+- `user_id` (unique)
+- `session_string_ciphertext` (AES-256-GCM encrypted Telethon StringSession)
+- `phone`, `status` (`logged_out` / `awaiting_code` / `awaiting_password` / `logged_in`)
+- Grants: **sirf service_role** — anon/authenticated ko nahi (session leak = account hijack).
 
-All tables get RLS scoped to `auth.uid()` and the required GRANTs.
+**`forwarding_rules` per-user check:** Worker jab rules fetch kare to sirf active subscription wale users ke rules mile.
 
-### 2. Secure sync API (server routes under `/api/public/worker/*`)
-The external worker calls these with a Bearer worker-token (verified server-side, not user auth):
-- `GET /api/public/worker/rules` — returns enabled rules for that token's user.
-- `POST /api/public/worker/logs` — worker reports forward results, inserted into `forwarding_logs`.
-- `POST /api/public/worker/heartbeat` — worker reports it's alive; dashboard shows online/offline.
+## 2. Worker refactor (`worker/main.py`)
 
-### 3. Web dashboard (authenticated)
-- **Auth**: email/password login + signup.
-- **Rules manager**: create/edit/delete forwarding rules. Each rule picks source, destination, direction type (channel→channel, channel→bot, bot→channel), enable toggle, optional keyword filters.
-- **Worker setup page**: generate/copy the worker token, shows worker online/offline status (from heartbeat), and step-by-step instructions to run the worker.
-- **Logs page**: recent forwarding activity with status filters.
+Abhi: 1 `TelegramClient` instance, file-based session, aapka account.
+Naya: **N TelegramClients in a dict `clients[user_id]`**, har ek in-memory `StringSession` se load hota hai jo DB se decrypt karke aata hai.
 
-### 4. The worker script (delivered as files in the repo, run externally)
-A `worker/` folder with:
-- `main.py` — Telethon userbot: logs in with your account, pulls rules from the sync API on an interval, listens for new messages in source chats, forwards to destinations, posts logs + heartbeat back.
-- `requirements.txt`, `.env.example`, `README.md` with setup (get `API_ID`/`API_HASH` from my.telegram.org, first-run phone login, how to keep it running with systemd/pm2).
+- `/api/public/worker/users` naya endpoint: worker isse har 30s pe active users ki list leta hai (subscription active + session logged_in).
+- Naya user aaya → us user ka session load karo, `NewMessage` handler register karo, `clients[user_id]` me daal do.
+- User expire/logout hua → us client ko disconnect, dict se hatao.
+- Login flow (phone → code → 2FA) same rahega — worker DB se `telegram_auth` table poll karta hai, per-user client pe run karta hai, session string DB me encrypt karke save karta hai.
+- Message forward hone se pehle worker `is_active` check karega (cached, 30s).
 
-## What you must provide / do
-- Run the worker on an always-on machine (VPS/Railway/Fly/Pi).
-- Get `API_ID` + `API_HASH` from https://my.telegram.org and do the one-time phone login for the worker.
-- Paste the worker token from the dashboard into the worker's `.env`.
+## 3. Encryption
 
-## Important cautions
-- Userbot automation can violate Telegram's Terms of Service and risks your account being limited or banned. Use an account you're comfortable risking, respect rate limits (the worker throttles).
-- The Lovable app never stores your Telegram password or session; that lives only on your server.
+`APP_USER_CONNECTION_KEY_SECRET` jaisa ek secret `SESSION_ENCRYPTION_KEY` (32-byte, base64) auto-generate karege. AES-256-GCM se session string encrypt/decrypt hoga — server functions me only.
 
-## Technical notes
-- Stack: TanStack Start + Lovable Cloud (Supabase under the hood).
-- Worker auth uses a hashed token compared server-side in the `/api/public/worker/*` routes; no Supabase user JWT needed for the worker.
-- Rules reference chats by username or numeric ID; the worker resolves them via your account's access.
+## 4. Server functions / API
 
-## Build order
-1. Enable Lovable Cloud; create tables, RLS, GRANTs, roles.
-2. Auth pages + protected dashboard shell.
-3. Rules CRUD UI + server functions.
-4. Worker token generation + sync API routes + heartbeat/status.
-5. Logs page.
-6. Worker script folder + README.
+- `getMySubscription` — dashboard pe trial days left dikhane ke liye.
+- `/api/public/worker/users` — worker ko active user list + phone/status dena.
+- `/api/public/worker/session` — worker se encrypted session string DB me save karne ke liye (worker ke bearer token se auth).
+- Existing `login-state`/`login-status` endpoints ko multi-user karna (user_id header/scope se).
 
-I'll confirm the design direction (colors/typography) for the dashboard when we start building unless you have a preference.
+## 5. Dashboard UI
+
+- **Trial banner** har page pe top pe: "3 days trial — 2 days left" ya "Trial expired — subscribe to continue".
+- **Rule add/edit** block if `!is_active`.
+- Forwarding page waise ka waise (already user-scoped hai).
+
+## 6. Worker token model change
+
+Abhi: 1 worker token = 1 user ka data.
+Naya: Worker ka **ek master token** hoga (env var `WORKER_MASTER_TOKEN`) jo saare users ka data access kar sake. `worker_tokens` table sirf legacy compatibility ke liye rakhege ya hata dege. Master token aap admin panel se dekh sakoge, users ke saamne nahi aayega.
+
+---
+
+## Kya iss phase me nahi hoga
+
+- License key page / invite links (Phase 2)
+- Payment integration / Super Profile link (Phase 2)
+- Admin panel UI (Phase 2 — abhi database me aapka user_id ko admin role assign kar dege bas)
+- Plan pricing / limits per plan (Phase 2)
+
+---
+
+## Kaam ka order
+
+1. **Migration 1:** `subscriptions` table + trigger + aapko admin role assign.
+2. **Migration 2:** `telegram_sessions` table (encrypted).
+3. **Secret:** Generate `SESSION_ENCRYPTION_KEY`.
+4. **Server fns + APIs:** `getMySubscription`, `/api/public/worker/users`, `/api/public/worker/session`, update `login-state`/`login-status` for multi-user.
+5. **Worker rewrite (v10):** Multi-client dict, per-user session, subscription check.
+6. **Dashboard:** Trial banner + block-if-expired guard.
+7. **Deploy:** Oracle pe worker update, master token set, purana single-user session file hata do.
+
+---
+
+## ⚠️ Important notes
+
+- **Oracle worker restart hoga** ek baar (naya `main.py` deploy karna hoga — `git pull && systemctl restart forwardflow`).
+- **Aapka current Telegram login re-do karna padega** ek baar (kyunki session ab DB me encrypted store hoga, file me nahi). Purana file session hata denge.
+- **All existing forwarding rules preserve hongi** — sirf session flow badalega.
+
+---
+
+Approve karo to migration 1 se start karta hoon.

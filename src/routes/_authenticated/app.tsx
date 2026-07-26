@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Send, ListChecks, ScrollText, ServerCog, LogOut, Phone, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TrialBanner } from "@/components/TrialBanner";
 
 export const Route = createFileRoute("/_authenticated/app")({
   component: AppLayout,
@@ -67,6 +68,7 @@ function AppLayout() {
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8">
+        <TrialBanner />
         <Outlet />
       </main>
     </div>
