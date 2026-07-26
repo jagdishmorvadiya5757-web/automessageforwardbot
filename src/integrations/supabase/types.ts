@@ -127,6 +127,39 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          subscription_ends_at: string | null
+          trial_ends_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          subscription_ends_at?: string | null
+          trial_ends_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          subscription_ends_at?: string | null
+          trial_ends_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       telegram_auth: {
         Row: {
           code: string | null
@@ -202,6 +235,36 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          phone: string | null
+          session_ciphertext: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phone?: string | null
+          session_ciphertext?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phone?: string | null
+          session_ciphertext?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -259,6 +322,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_subscription_active: { Args: { _user_id: string }; Returns: boolean }
       record_forwarded_count: {
         Args: { _rule_id: string; _user_id: string }
         Returns: {
@@ -288,6 +352,7 @@ export type Database = {
       app_role: "admin" | "user"
       endpoint_type: "channel" | "bot"
       forward_status: "forwarded" | "skipped" | "error" | "waiting"
+      subscription_plan: "trial" | "pro" | "business" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -418,6 +483,7 @@ export const Constants = {
       app_role: ["admin", "user"],
       endpoint_type: ["channel", "bot"],
       forward_status: ["forwarded", "skipped", "error", "waiting"],
+      subscription_plan: ["trial", "pro", "business", "expired"],
     },
   },
 } as const
