@@ -18,6 +18,8 @@ import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
 import { Route as AuthenticatedAppLoginRouteImport } from './routes/_authenticated/app.login'
 import { Route as AuthenticatedAppChannelsRouteImport } from './routes/_authenticated/app.channels'
+import { Route as ApiPublicWorkerUsersRouteImport } from './routes/api/public/worker/users'
+import { Route as ApiPublicWorkerSessionRouteImport } from './routes/api/public/worker/session'
 import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
 import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
 import { Route as ApiPublicWorkerLoginStatusRouteImport } from './routes/api/public/worker/login-status'
@@ -71,6 +73,16 @@ const AuthenticatedAppChannelsRoute =
     path: '/channels',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const ApiPublicWorkerUsersRoute = ApiPublicWorkerUsersRouteImport.update({
+  id: '/api/public/worker/users',
+  path: '/api/public/worker/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkerSessionRoute = ApiPublicWorkerSessionRouteImport.update({
+  id: '/api/public/worker/session',
+  path: '/api/public/worker/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWorkerRulesRoute = ApiPublicWorkerRulesRouteImport.update({
   id: '/api/public/worker/rules',
   path: '/api/public/worker/rules',
@@ -127,6 +139,8 @@ export interface FileRoutesByFullPath {
   '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
   '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
+  '/api/public/worker/session': typeof ApiPublicWorkerSessionRoute
+  '/api/public/worker/users': typeof ApiPublicWorkerUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -143,6 +157,8 @@ export interface FileRoutesByTo {
   '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
   '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
+  '/api/public/worker/session': typeof ApiPublicWorkerSessionRoute
+  '/api/public/worker/users': typeof ApiPublicWorkerUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -162,6 +178,8 @@ export interface FileRoutesById {
   '/api/public/worker/login-status': typeof ApiPublicWorkerLoginStatusRoute
   '/api/public/worker/logs': typeof ApiPublicWorkerLogsRoute
   '/api/public/worker/rules': typeof ApiPublicWorkerRulesRoute
+  '/api/public/worker/session': typeof ApiPublicWorkerSessionRoute
+  '/api/public/worker/users': typeof ApiPublicWorkerUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +199,8 @@ export interface FileRouteTypes {
     | '/api/public/worker/login-status'
     | '/api/public/worker/logs'
     | '/api/public/worker/rules'
+    | '/api/public/worker/session'
+    | '/api/public/worker/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +217,8 @@ export interface FileRouteTypes {
     | '/api/public/worker/login-status'
     | '/api/public/worker/logs'
     | '/api/public/worker/rules'
+    | '/api/public/worker/session'
+    | '/api/public/worker/users'
   id:
     | '__root__'
     | '/'
@@ -215,6 +237,8 @@ export interface FileRouteTypes {
     | '/api/public/worker/login-status'
     | '/api/public/worker/logs'
     | '/api/public/worker/rules'
+    | '/api/public/worker/session'
+    | '/api/public/worker/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -228,6 +252,8 @@ export interface RootRouteChildren {
   ApiPublicWorkerLoginStatusRoute: typeof ApiPublicWorkerLoginStatusRoute
   ApiPublicWorkerLogsRoute: typeof ApiPublicWorkerLogsRoute
   ApiPublicWorkerRulesRoute: typeof ApiPublicWorkerRulesRoute
+  ApiPublicWorkerSessionRoute: typeof ApiPublicWorkerSessionRoute
+  ApiPublicWorkerUsersRoute: typeof ApiPublicWorkerUsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -294,6 +320,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/channels'
       preLoaderRoute: typeof AuthenticatedAppChannelsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/api/public/worker/users': {
+      id: '/api/public/worker/users'
+      path: '/api/public/worker/users'
+      fullPath: '/api/public/worker/users'
+      preLoaderRoute: typeof ApiPublicWorkerUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/session': {
+      id: '/api/public/worker/session'
+      path: '/api/public/worker/session'
+      fullPath: '/api/public/worker/session'
+      preLoaderRoute: typeof ApiPublicWorkerSessionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/worker/rules': {
       id: '/api/public/worker/rules'
@@ -388,17 +428,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWorkerLoginStatusRoute: ApiPublicWorkerLoginStatusRoute,
   ApiPublicWorkerLogsRoute: ApiPublicWorkerLogsRoute,
   ApiPublicWorkerRulesRoute: ApiPublicWorkerRulesRoute,
+  ApiPublicWorkerSessionRoute: ApiPublicWorkerSessionRoute,
+  ApiPublicWorkerUsersRoute: ApiPublicWorkerUsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
