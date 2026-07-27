@@ -228,23 +228,15 @@ function AdminPage() {
                   : u.subscriptionEndsAt &&
                     `until ${new Date(u.subscriptionEndsAt).toLocaleDateString()}`}
               </span>
-              <div className="ml-auto w-36">
-                <Select value={u.plan} onValueChange={(v) => changePlan(u.userId, v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="trial">Trial +30d</SelectItem>
-                    <SelectItem value="pro">Pro +30d</SelectItem>
-                    <SelectItem value="business">Business +30d</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <PlanEditor
+                currentPlan={u.plan}
+                onApply={(p, d) => changePlan(u.userId, p, d)}
+              />
             </div>
           ))}
           {users.data?.length === 0 && <p className="text-sm text-muted-foreground">No users.</p>}
         </TabsContent>
+
       </Tabs>
     </div>
   );
