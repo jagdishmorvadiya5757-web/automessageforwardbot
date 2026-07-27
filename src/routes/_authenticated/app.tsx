@@ -28,7 +28,6 @@ const nav = [
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
   { to: "/app/plan", label: "Plan", icon: CreditCard, exact: false },
-  { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
 ];
 
 
