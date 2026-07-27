@@ -94,16 +94,16 @@ function AdminPage() {
     }
   }
 
-  async function changePlan(userId: string, newPlan: string) {
-    const d = newPlan === "expired" ? 0 : 30;
+  async function changePlan(userId: string, newPlan: string, d: number) {
     try {
-      await setPlanFn({ data: { userId, plan: newPlan as never, days: d } });
+      await setPlanFn({ data: { userId, plan: newPlan as never, days: newPlan === "expired" ? 0 : d } });
       await qc.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("Plan updated");
     } catch (e) {
       toast.error((e as Error).message);
     }
   }
+
 
   return (
     <div className="space-y-6">
@@ -228,24 +228,71 @@ function AdminPage() {
                   : u.subscriptionEndsAt &&
                     `until ${new Date(u.subscriptionEndsAt).toLocaleDateString()}`}
               </span>
-              <div className="ml-auto w-36">
-                <Select value={u.plan} onValueChange={(v) => changePlan(u.userId, v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="trial">Trial +30d</SelectItem>
-                    <SelectItem value="pro">Pro +30d</SelectItem>
-                    <SelectItem value="business">Business +30d</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <PlanEditor
+                currentPlan={u.plan}
+                onApply={(p, d) => changePlan(u.userId, p, d)}
+              />
             </div>
           ))}
           {users.data?.length === 0 && <p className="text-sm text-muted-foreground">No users.</p>}
         </TabsContent>
+
       </Tabs>
+    </div>
+  );
+}
+
+function PlanEditor({
+  currentPlan,
+  onApply,
+}: {
+  currentPlan: string;
+  onApply: (plan: string, days: number) => void | Promise<void>;
+}) {
+  const [plan, setPlan] = useState(currentPlan);
+  const [days, setDays] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="ml-auto flex items-center gap-2">
+      <div className="w-32">
+        <Select value={plan} onValueChange={setPlan}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="trial">Trial</SelectItem>
+            <SelectItem value="pro">Pro</SelectItem>
+            <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Input
+        type="number"
+        min={0}
+        max={3650}
+        className="w-20"
+        value={days}
+        disabled={plan === "expired"}
+        onChange={(e) => setDays(Number(e.target.value) || 0)}
+        aria-label="Days"
+      />
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onApply(plan, days);
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
+        Apply
+      </Button>
     </div>
   );
 }

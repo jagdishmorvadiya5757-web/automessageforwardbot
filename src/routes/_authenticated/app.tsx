@@ -28,7 +28,6 @@ const nav = [
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
   { to: "/app/plan", label: "Plan", icon: CreditCard, exact: false },
-  { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
 ];
 
 
@@ -43,7 +42,11 @@ function AppLayout() {
     staleTime: 5 * 60_000,
   });
   const navItems = adminInfo?.isAdmin
-    ? [...nav, { to: "/app/admin", label: "Admin", icon: Shield, exact: false }]
+    ? [
+        ...nav,
+        { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
+        { to: "/app/admin", label: "Admin", icon: Shield, exact: false },
+      ]
     : nav;
 
 
