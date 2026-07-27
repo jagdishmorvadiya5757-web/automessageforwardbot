@@ -106,6 +106,45 @@ export type Database = {
         }
         Relationships: []
       }
+      license_keys: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          duration_days: number
+          id: string
+          note: string | null
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          redeemed_at: string | null
+          redeemed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          id?: string
+          note?: string | null
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          id?: string
+          note?: string | null
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -329,6 +368,15 @@ export type Database = {
           enabled: boolean
           forwarded_count: number
           max_forward_count: number
+        }[]
+      }
+      redeem_license_key: {
+        Args: { _code: string; _user_id: string }
+        Returns: {
+          ends_at: string
+          message: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          success: boolean
         }[]
       }
       release_forwarding_slot: {
