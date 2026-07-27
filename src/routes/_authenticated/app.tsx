@@ -69,7 +69,7 @@ function AppLayout() {
           </Button>
         </div>
         <nav className="mx-auto flex max-w-5xl gap-1 px-4">
-          {nav.map((n) => {
+          {navItems.map((n) => {
             const active = n.exact
               ? location.pathname === n.to
               : location.pathname.startsWith(n.to);
