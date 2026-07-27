@@ -1,8 +1,20 @@
 import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { amIAdmin } from "@/lib/license.functions";
 import { Button } from "@/components/ui/button";
-import { Send, ListChecks, ScrollText, ServerCog, LogOut, Phone, Radio } from "lucide-react";
+import {
+  Send,
+  ListChecks,
+  ScrollText,
+  ServerCog,
+  LogOut,
+  Phone,
+  Radio,
+  CreditCard,
+  Shield,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TrialBanner } from "@/components/TrialBanner";
 
@@ -15,8 +27,10 @@ const nav = [
   { to: "/app/login", label: "Telegram", icon: Phone, exact: false },
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
+  { to: "/app/plan", label: "Plan", icon: CreditCard, exact: false },
   { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
 ];
+
 
 function AppLayout() {
   const navigate = useNavigate();
