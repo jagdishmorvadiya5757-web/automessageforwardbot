@@ -36,6 +36,16 @@ function AppLayout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const location = useLocation();
+  const adminFn = useServerFn(amIAdmin);
+  const { data: adminInfo } = useQuery({
+    queryKey: ["am-i-admin"],
+    queryFn: () => adminFn(),
+    staleTime: 5 * 60_000,
+  });
+  const navItems = adminInfo?.isAdmin
+    ? [...nav, { to: "/app/admin", label: "Admin", icon: Shield, exact: false }]
+    : nav;
+
 
   async function signOut() {
     await queryClient.cancelQueries();
