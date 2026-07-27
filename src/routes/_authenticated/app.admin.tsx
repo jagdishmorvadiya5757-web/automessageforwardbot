@@ -94,16 +94,16 @@ function AdminPage() {
     }
   }
 
-  async function changePlan(userId: string, newPlan: string) {
-    const d = newPlan === "expired" ? 0 : 30;
+  async function changePlan(userId: string, newPlan: string, d: number) {
     try {
-      await setPlanFn({ data: { userId, plan: newPlan as never, days: d } });
+      await setPlanFn({ data: { userId, plan: newPlan as never, days: newPlan === "expired" ? 0 : d } });
       await qc.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("Plan updated");
     } catch (e) {
       toast.error((e as Error).message);
     }
   }
+
 
   return (
     <div className="space-y-6">
