@@ -241,3 +241,58 @@ function AdminPage() {
     </div>
   );
 }
+
+function PlanEditor({
+  currentPlan,
+  onApply,
+}: {
+  currentPlan: string;
+  onApply: (plan: string, days: number) => void | Promise<void>;
+}) {
+  const [plan, setPlan] = useState(currentPlan);
+  const [days, setDays] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="ml-auto flex items-center gap-2">
+      <div className="w-32">
+        <Select value={plan} onValueChange={setPlan}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="trial">Trial</SelectItem>
+            <SelectItem value="pro">Pro</SelectItem>
+            <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Input
+        type="number"
+        min={0}
+        max={3650}
+        className="w-20"
+        value={days}
+        disabled={plan === "expired"}
+        onChange={(e) => setDays(Number(e.target.value) || 0)}
+        aria-label="Days"
+      />
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onApply(plan, days);
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
+        Apply
+      </Button>
+    </div>
+  );
+}
