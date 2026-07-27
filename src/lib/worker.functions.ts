@@ -55,3 +55,20 @@ export const getWorkerStatus = createServerFn({ method: "GET" })
       online,
     };
   });
+
+/**
+ * Admin-only: reveals the shared MASTER worker token used by the multi-user
+ * worker deployment (Oracle/Railway). Never exposed to normal users.
+ */
+export const getMasterWorkerToken = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!data) throw new Error("Forbidden");
+    const token = process.env.WORKER_MASTER_TOKEN;
+    if (!token) throw new Error("WORKER_MASTER_TOKEN is not configured");
+    return { token };
+  });
