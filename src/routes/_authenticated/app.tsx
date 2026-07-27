@@ -42,7 +42,11 @@ function AppLayout() {
     staleTime: 5 * 60_000,
   });
   const navItems = adminInfo?.isAdmin
-    ? [...nav, { to: "/app/admin", label: "Admin", icon: Shield, exact: false }]
+    ? [
+        ...nav,
+        { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
+        { to: "/app/admin", label: "Admin", icon: Shield, exact: false },
+      ]
     : nav;
 
 
