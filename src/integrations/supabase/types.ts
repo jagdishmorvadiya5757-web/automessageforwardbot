@@ -207,6 +207,7 @@ export type Database = {
           id: string
           pending_action: string | null
           phone: string | null
+          phone_code_hash: string | null
           status: string
           two_fa_password: string | null
           updated_at: string
@@ -219,6 +220,7 @@ export type Database = {
           id?: string
           pending_action?: string | null
           phone?: string | null
+          phone_code_hash?: string | null
           status?: string
           two_fa_password?: string | null
           updated_at?: string
@@ -231,6 +233,7 @@ export type Database = {
           id?: string
           pending_action?: string | null
           phone?: string | null
+          phone_code_hash?: string | null
           status?: string
           two_fa_password?: string | null
           updated_at?: string
