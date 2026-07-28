@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/public/worker/heartbeat")({
         const query = supabaseAdmin
           .from("worker_tokens")
           .update({ last_heartbeat: new Date().toISOString() });
-        const { error } = auth?.userId ? await query.eq("user_id", auth.userId) : await query;
+        const { error } = auth?.userId ? await query.eq("user_id", auth.userId) : await query.not("id", "is", null);
         if (error) return new Response(error.message, { status: 500 });
         return Response.json({ ok: true });
       },
