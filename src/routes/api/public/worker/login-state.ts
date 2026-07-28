@@ -14,13 +14,20 @@ export const Route = createFileRoute("/api/public/worker/login-state")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin
           .from("telegram_auth")
-          .select("status, pending_action, phone, code, two_fa_password")
+          .select("status, pending_action, phone, code, two_fa_password, phone_code_hash")
           .eq("user_id", auth.userId)
           .maybeSingle();
 
         if (error) return new Response(error.message, { status: 500 });
         return Response.json(
-          data ?? { status: "logged_out", pending_action: null, phone: null, code: null, two_fa_password: null },
+          data ?? {
+            status: "logged_out",
+            pending_action: null,
+            phone: null,
+            code: null,
+            two_fa_password: null,
+            phone_code_hash: null,
+          },
         );
       },
     },
