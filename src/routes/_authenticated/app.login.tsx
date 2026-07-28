@@ -60,6 +60,7 @@ function TelegramLoginPage() {
           pending_action: "request_code",
           code: null,
           two_fa_password: null,
+          phone_code_hash: null,
           detail: null,
         },
         { onConflict: "user_id" },
@@ -112,7 +113,12 @@ function TelegramLoginPage() {
       const id = await uid();
       const { error } = await supabase
         .from("telegram_auth")
-        .update({ pending_action: "logout", status: "code_requested", detail: null })
+        .update({
+          pending_action: "logout",
+          status: "code_requested",
+          detail: null,
+          phone_code_hash: null,
+        })
         .eq("user_id", id);
       if (error) throw error;
     },
