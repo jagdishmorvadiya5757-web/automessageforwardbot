@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { getTelegramConnectionState, type TelegramConnectionState } from "@/lib/telegram.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,13 +18,6 @@ export const Route = createFileRoute("/_authenticated/app/login")({
   component: TelegramLoginPage,
 });
 
-type AuthState = {
-  status: string;
-  pending_action: string | null;
-  phone: string | null;
-  detail: string | null;
-};
-
 const STATUS_LABEL: Record<string, string> = {
   logged_out: "Not connected",
   code_requested: "Requesting code…",
@@ -34,25 +29,15 @@ const STATUS_LABEL: Record<string, string> = {
 
 function TelegramLoginPage() {
   const qc = useQueryClient();
+  const fetchTelegramState = useServerFn(getTelegramConnectionState);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
 
   const { data: state } = useQuery({
     queryKey: ["telegram-auth"],
-    queryFn: async (): Promise<AuthState> => {
-      const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id;
-      if (!uid) throw new Error("Not signed in");
-      const { data, error } = await supabase
-        .from("telegram_auth")
-        .select("status, pending_action, phone, detail")
-        .eq("user_id", uid)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as AuthState) ?? { status: "logged_out", pending_action: null, phone: null, detail: null };
-    },
-    refetchInterval: 4000,
+    queryFn: (): Promise<TelegramConnectionState> => fetchTelegramState({}),
+    refetchInterval: 2500,
   });
 
   const status = state?.status ?? "logged_out";
@@ -75,6 +60,7 @@ function TelegramLoginPage() {
           pending_action: "request_code",
           code: null,
           two_fa_password: null,
+          phone_code_hash: null,
           detail: null,
         },
         { onConflict: "user_id" },
@@ -127,7 +113,12 @@ function TelegramLoginPage() {
       const id = await uid();
       const { error } = await supabase
         .from("telegram_auth")
-        .update({ pending_action: "logout", status: "code_requested", detail: null })
+        .update({
+          pending_action: "logout",
+          status: "code_requested",
+          detail: null,
+          phone_code_hash: null,
+        })
         .eq("user_id", id);
       if (error) throw error;
     },
@@ -158,8 +149,11 @@ function TelegramLoginPage() {
               {state?.phone ? ` · ${state.phone}` : ""}
             </CardDescription>
           </div>
-          <Badge variant={connected ? "default" : "secondary"} className="gap-1">
-            <Circle className={`h-2 w-2 fill-current ${connected ? "text-green-400" : ""}`} />
+          <Badge
+            variant={connected ? "outline" : "secondary"}
+            className={connected ? "gap-1 border-transparent bg-success text-success-foreground" : "gap-1"}
+          >
+            <Circle className="h-2 w-2 fill-current" />
             {connected ? "Connected" : "Offline"}
           </Badge>
         </CardHeader>

@@ -119,11 +119,20 @@ async def post_log(user_id: str, rule_id, status, detail, ref=None):
     )
 
 
-async def post_login_status(user_id: str, status: str, detail: str | None = None, pending_action=None):
+async def post_login_status(
+    user_id: str,
+    status: str,
+    detail: str | None = None,
+    pending_action=None,
+    phone_code_hash: str | None = None,
+):
+    body = {"status": status, "detail": detail, "pending_action": pending_action}
+    if phone_code_hash is not None:
+        body["phone_code_hash"] = phone_code_hash
     await api_post(
         "/api/public/worker/login-status",
         user_id,
-        {"status": status, "detail": detail, "pending_action": pending_action},
+        body,
     )
 
 
@@ -214,20 +223,29 @@ async def handle_login(rt: UserRuntime, state: dict):
             sent = await rt.client.send_code_request(phone)
             rt.login_ctx["phone"] = phone
             rt.login_ctx["phone_code_hash"] = sent.phone_code_hash
-            await post_login_status(rt.user_id, "awaiting_code")
+            await post_login_status(rt.user_id, "awaiting_code", phone_code_hash=sent.phone_code_hash)
         except Exception as e:
             await post_login_status(rt.user_id, "error", str(e))
 
     elif action == "submit_code":
         code = state.get("code")
+        phone_code_hash = rt.login_ctx.get("phone_code_hash") or state.get("phone_code_hash")
+        phone = rt.login_ctx.get("phone") or state.get("phone")
+        if not phone_code_hash:
+            await post_login_status(
+                rt.user_id,
+                "error",
+                "OTP session expired. Press Send code again, then enter the new code.",
+            )
+            return
         try:
             await rt.client.sign_in(
-                phone=rt.login_ctx.get("phone") or state.get("phone"),
+                phone=phone,
                 code=code,
-                phone_code_hash=rt.login_ctx.get("phone_code_hash"),
+                phone_code_hash=phone_code_hash,
             )
             session_string = rt.client.session.save()
-            await save_session(rt.user_id, session_string, rt.login_ctx.get("phone") or state.get("phone"))
+            await save_session(rt.user_id, session_string, phone)
             await post_login_status(rt.user_id, "logged_in")
             await sync_channels(rt)
         except SessionPasswordNeededError:
