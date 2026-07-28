@@ -513,13 +513,6 @@ async def supervisor():
         data = await api_get("/api/public/worker/users") or {}
         wanted = {u["user_id"] for u in data.get("users", [])}
 
-        # Also include users that need first-time login: they have no session
-        # yet, but if they don't appear in `wanted` because /users only returns
-        # users WITH a session, they can't ever login. We'll drive first-login
-        # through a separate signal: the dashboard writes their user_id into
-        # telegram_sessions (with status='logged_out') as soon as they visit
-        # /app/login. Until that's added, admins can nudge by inserting a row.
-
         for uid in list(users.keys()):
             if uid not in wanted:
                 await reap_user(uid)
@@ -536,14 +529,13 @@ async def supervisor():
 async def heartbeat():
     while True:
         try:
-            # heartbeat needs a user_id header now; skip if no users yet
-            if users:
-                any_user = next(iter(users))
-                await http.post(
-                    f"{API_BASE_URL}/api/public/worker/heartbeat",
-                    headers=user_headers(any_user),
-                    json={},
-                )
+            any_user = next(iter(users), None)
+            headers = user_headers(any_user) if any_user else BASE_HEADERS
+            await http.post(
+                f"{API_BASE_URL}/api/public/worker/heartbeat",
+                headers=headers,
+                json={},
+            )
         except Exception as e:
             print(f"[heartbeat] {e}")
         await asyncio.sleep(60)
