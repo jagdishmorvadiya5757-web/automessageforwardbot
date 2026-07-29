@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      claim_codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          duration_days: number
+          id: string
+          max_uses: number
+          note: string | null
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          updated_at: string
+          used_count: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          id?: string
+          max_uses?: number
+          note?: string | null
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          updated_at?: string
+          used_count?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          id?: string
+          max_uses?: number
+          note?: string | null
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          updated_at?: string
+          used_count?: number
+        }
+        Relationships: []
+      }
       forwarding_logs: {
         Row: {
           created_at: string
@@ -142,6 +184,54 @@ export type Database = {
           redeemed_at?: string | null
           redeemed_by?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          created_at: string
+          duration_days: number
+          id: string
+          name: string
+          payment_link: string | null
+          period: string
+          perks: string[]
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          price: string
+          slug: string
+          sort_order: number
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          created_at?: string
+          duration_days?: number
+          id?: string
+          name: string
+          payment_link?: string | null
+          period?: string
+          perks?: string[]
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          price?: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          created_at?: string
+          duration_days?: number
+          id?: string
+          name?: string
+          payment_link?: string | null
+          period?: string
+          perks?: string[]
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          price?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+          visible?: boolean
         }
         Relationships: []
       }
@@ -357,6 +447,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_license_key: {
+        Args: { _code: string }
+        Returns: {
+          duration_days: number
+          license_code: string
+          message: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          success: boolean
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
