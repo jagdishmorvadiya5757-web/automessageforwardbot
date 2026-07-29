@@ -118,9 +118,9 @@ function PlanPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {PLANS.map((p) => (
-          <Card key={p.name}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {(plans ?? []).map((p) => (
+          <Card key={p.id} className="flex flex-col">
             <CardHeader>
               <CardTitle className="text-base">{p.name}</CardTitle>
               <CardDescription>
@@ -128,21 +128,30 @@ function PlanPage() {
                 <span className="text-xs">{p.period}</span>
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="flex flex-1 flex-col gap-2 text-sm">
               {p.perks.map((perk) => (
                 <div key={perk} className="flex items-start gap-2 text-muted-foreground">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {perk}
+                  <span className="min-w-0">{perk}</span>
                 </div>
               ))}
+              {p.payment_link && (
+                <Button asChild className="mt-4 w-full">
+                  <a href={p.payment_link} target="_blank" rel="noopener noreferrer">
+                    Buy {p.name} <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Need a key? Contact the admin — keys are issued manually after payment.
+        After paying, use the claim link you receive to generate your license key, then activate it
+        above.
       </p>
+
     </div>
   );
 }
