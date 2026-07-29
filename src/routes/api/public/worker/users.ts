@@ -41,7 +41,10 @@ export const Route = createFileRoute("/api/public/worker/users")({
           .select("user_id, phone, status");
         if (sesErr) return new Response(sesErr.message, { status: 500 });
 
-        const byUser = new Map<string, { user_id: string; phone: string | null; status: string }>();
+        const byUser = new Map<
+          string,
+          { user_id: string; phone: string | null; status: string; pending: boolean }
+        >();
 
         for (const s of sessions ?? []) {
           if (!activeUserIds.has(s.user_id)) continue;
@@ -49,6 +52,7 @@ export const Route = createFileRoute("/api/public/worker/users")({
             user_id: s.user_id,
             phone: s.phone,
             status: s.status,
+            pending: s.status !== "logged_in",
           });
         }
 
@@ -61,17 +65,25 @@ export const Route = createFileRoute("/api/public/worker/users")({
         if (authErr) return new Response(authErr.message, { status: 500 });
 
         for (const a of authRows ?? []) {
-          if (!activeUserIds.has(a.user_id) || byUser.has(a.user_id)) continue;
+          if (!activeUserIds.has(a.user_id)) continue;
+          const existing = byUser.get(a.user_id);
+          if (existing) {
+            // A queued action (logout / sync_channels / re-login) needs fast polling.
+            existing.pending = true;
+            continue;
+          }
           byUser.set(a.user_id, {
             user_id: a.user_id,
             phone: a.phone,
             status: a.status,
+            pending: true,
           });
         }
 
         const users = [...byUser.values()];
 
         return Response.json({ users });
+
       },
     },
   },

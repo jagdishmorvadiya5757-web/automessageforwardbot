@@ -30,11 +30,14 @@ TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
 USERS_POLL_INTERVAL = int(os.environ.get("USERS_POLL_INTERVAL", "20"))
+IDLE_POLL_INTERVAL = int(os.environ.get("IDLE_POLL_INTERVAL", "30"))
+SPAWN_CONCURRENCY = int(os.environ.get("SPAWN_CONCURRENCY", "5"))
+SPAWN_GAP = float(os.environ.get("SPAWN_GAP", "0.4"))
 FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-26-multiuser-v10"
+WORKER_VERSION = "2026-07-29-multiuser-v11"
 
 http = httpx.AsyncClient(timeout=30)
 
@@ -59,6 +62,7 @@ class UserRuntime:
         self.forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
         self.login_ctx: dict = {"phone": None, "phone_code_hash": None}
         self.forwarding_started = False
+        self.pending = True  # supervisor flips this from the /users payload
         self._tasks: list[asyncio.Task] = []
 
     async def close(self):
@@ -309,7 +313,9 @@ async def control_loop_for(rt: UserRuntime):
         except Exception as e:
             print(f"[{rt.user_id[:8]}] control loop error: {e}")
 
-        await asyncio.sleep(LOGIN_POLL_INTERVAL)
+        # Fast polling only while something is pending (login / logout / sync).
+        # Idle logged-in users poll slowly so 500 users don't hammer the API.
+        await asyncio.sleep(LOGIN_POLL_INTERVAL if rt.pending else IDLE_POLL_INTERVAL)
 
 
 async def refresh_rules(rt: UserRuntime):
@@ -509,6 +515,7 @@ async def spawn_user(user_id: str):
 
     rt = UserRuntime(user_id)
     rt.client = client
+    rt.pending = True
     rt.login_ctx["phone"] = phone
     client.add_event_handler(make_message_handler(rt), events.NewMessage(incoming=True))
     users[user_id] = rt
@@ -529,17 +536,36 @@ async def supervisor():
     """Sync the local `users` dict with the API's active-user list."""
     while True:
         data = await api_get("/api/public/worker/users") or {}
-        wanted = {u["user_id"] for u in data.get("users", [])}
+        entries = data.get("users", [])
+        wanted = {u["user_id"]: bool(u.get("pending", True)) for u in entries}
 
         for uid in list(users.keys()):
             if uid not in wanted:
                 await reap_user(uid)
-        for uid in wanted:
-            if uid not in users:
-                try:
-                    await spawn_user(uid)
-                except Exception as e:
-                    print(f"[supervisor] spawn failed {uid[:8]}: {e}")
+
+        # Keep each runtime's poll cadence in sync with the API view.
+        for uid, pending in wanted.items():
+            rt = users.get(uid)
+            if rt:
+                rt.pending = pending
+
+        missing = [uid for uid in wanted if uid not in users]
+        if missing:
+            sem = asyncio.Semaphore(SPAWN_CONCURRENCY)
+
+            async def spawn_guarded(uid: str, index: int):
+                # Stagger connects so a restart with hundreds of users does not
+                # open every Telegram socket in the same instant.
+                await asyncio.sleep(index * SPAWN_GAP)
+                async with sem:
+                    try:
+                        await spawn_user(uid)
+                    except Exception as e:
+                        print(f"[supervisor] spawn failed {uid[:8]}: {e}")
+
+            await asyncio.gather(
+                *(spawn_guarded(uid, i) for i, uid in enumerate(missing))
+            )
 
         await asyncio.sleep(USERS_POLL_INTERVAL)
 
