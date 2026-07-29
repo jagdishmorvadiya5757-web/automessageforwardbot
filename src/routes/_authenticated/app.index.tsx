@@ -323,15 +323,15 @@ function RulesPage() {
         <div className="grid gap-3">
           {rules.map((r) => (
             <Card key={r.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-                <div className="min-w-0 space-y-1">
+              <CardContent className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
+                <div className="min-w-0 flex-1 space-y-1">
                   {r.name && <p className="font-medium text-foreground">{r.name}</p>}
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <Badge variant="secondary">{r.source_type}</Badge>
-                    <span className="font-mono text-foreground">{r.source}</span>
+                    <span className="break-all font-mono text-foreground">{r.source}</span>
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     <Badge variant="secondary">{r.destination_type}</Badge>
-                    <span className="font-mono text-foreground">{r.destination}</span>
+                    <span className="break-all font-mono text-foreground">{r.destination}</span>
                   </div>
                   {(r.include_keywords.length > 0 || r.exclude_keywords.length > 0) && (
                     <p className="text-xs text-muted-foreground">
@@ -352,7 +352,7 @@ function RulesPage() {
 
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                   <Switch
                     checked={r.enabled}
                     onCheckedChange={(v) => toggle.mutate({ id: r.id, enabled: v })}

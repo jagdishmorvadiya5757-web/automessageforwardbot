@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.claim_license_key(text) FROM anon, authenticated, public;

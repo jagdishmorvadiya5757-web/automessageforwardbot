@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { redeemLicenseKey } from "@/lib/license.functions";
+import { listPlans } from "@/lib/plans.functions";
 import { getMySubscription } from "@/lib/subscription.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { KeyRound, Check } from "lucide-react";
+import { KeyRound, Check, ExternalLink } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/app/plan")({
   component: PlanPage,
@@ -32,16 +34,11 @@ export const Route = createFileRoute("/_authenticated/app/plan")({
   }),
 });
 
-const PLANS = [
-  { name: "Trial", price: "Free", period: "3 days", perks: ["All features", "Unlimited rules", "Auto-starts on signup"] },
-  { name: "Pro", price: "₹499", period: "per month", perks: ["Unlimited forwarding", "Per-rule delay & limits", "Priority worker"] },
-  { name: "Business", price: "₹1499", period: "per month", perks: ["Everything in Pro", "Multiple Telegram accounts", "Priority support"] },
-];
-
 function PlanPage() {
   const qc = useQueryClient();
   const subFn = useServerFn(getMySubscription);
   const redeemFn = useServerFn(redeemLicenseKey);
+  const plansFn = useServerFn(listPlans);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -50,6 +47,9 @@ function PlanPage() {
     queryFn: () => subFn(),
     refetchInterval: 60_000,
   });
+
+  const { data: plans } = useQuery({ queryKey: ["public-plans"], queryFn: () => plansFn() });
+
 
   async function redeem(e: React.FormEvent) {
     e.preventDefault();
@@ -118,9 +118,9 @@ function PlanPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {PLANS.map((p) => (
-          <Card key={p.name}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {(plans ?? []).map((p) => (
+          <Card key={p.id} className="flex flex-col">
             <CardHeader>
               <CardTitle className="text-base">{p.name}</CardTitle>
               <CardDescription>
@@ -128,21 +128,30 @@ function PlanPage() {
                 <span className="text-xs">{p.period}</span>
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="flex flex-1 flex-col gap-2 text-sm">
               {p.perks.map((perk) => (
                 <div key={perk} className="flex items-start gap-2 text-muted-foreground">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {perk}
+                  <span className="min-w-0">{perk}</span>
                 </div>
               ))}
+              {p.payment_link && (
+                <Button asChild className="mt-4 w-full">
+                  <a href={p.payment_link} target="_blank" rel="noopener noreferrer">
+                    Buy {p.name} <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Need a key? Contact the admin — keys are issued manually after payment.
+        After paying, use the claim link you receive to generate your license key, then activate it
+        above.
       </p>
+
     </div>
   );
 }
