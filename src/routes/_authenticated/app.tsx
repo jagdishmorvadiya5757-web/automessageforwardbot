@@ -58,20 +58,21 @@ function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-svh bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to="/app" className="flex items-center gap-2 font-semibold text-foreground">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-3 py-3 sm:px-4">
+          <Link to="/app" className="flex min-w-0 items-center gap-2 font-semibold text-foreground">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Send className="h-4 w-4" />
             </span>
             ForwardFlow
           </Link>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="mr-2 h-4 w-4" /> Sign out
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={signOut}>
+            <LogOut className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 px-4">
+        <nav className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-3 [scrollbar-width:none] sm:px-4 [&::-webkit-scrollbar]:hidden">
           {navItems.map((n) => {
             const active = n.exact
               ? location.pathname === n.to
@@ -81,20 +82,20 @@ function AppLayout() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  "flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                  "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
                   active
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
-                <n.icon className="h-4 w-4" />
+                <n.icon className="h-4 w-4 shrink-0" />
                 {n.label}
               </Link>
             );
           })}
         </nav>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-4 sm:py-8">
         <TrialBanner />
         <Outlet />
       </main>
