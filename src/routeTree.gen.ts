@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -30,6 +31,11 @@ import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/publi
 import { Route as ApiPublicWorkerForwardSlotsRouteImport } from './routes/api/public/worker/forward-slots'
 import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
 
+const ClaimRoute = ClaimRouteImport.update({
+  id: '/claim',
+  path: '/claim',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -138,6 +144,7 @@ const ApiPublicWorkerChannelsRoute = ApiPublicWorkerChannelsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/claim': typeof ClaimRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/admin': typeof AuthenticatedAppAdminRoute
   '/app/channels': typeof AuthenticatedAppChannelsRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/claim': typeof ClaimRoute
   '/app/admin': typeof AuthenticatedAppAdminRoute
   '/app/channels': typeof AuthenticatedAppChannelsRoute
   '/app/login': typeof AuthenticatedAppLoginRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/claim': typeof ClaimRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/admin': typeof AuthenticatedAppAdminRoute
   '/_authenticated/app/channels': typeof AuthenticatedAppChannelsRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/claim'
     | '/app'
     | '/app/admin'
     | '/app/channels'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/claim'
     | '/app/admin'
     | '/app/channels'
     | '/app/login'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/claim'
     | '/_authenticated/app'
     | '/_authenticated/app/admin'
     | '/_authenticated/app/channels'
@@ -269,6 +281,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ClaimRoute: typeof ClaimRoute
   ApiPublicWorkerChannelsRoute: typeof ApiPublicWorkerChannelsRoute
   ApiPublicWorkerForwardSlotsRoute: typeof ApiPublicWorkerForwardSlotsRoute
   ApiPublicWorkerHeartbeatRoute: typeof ApiPublicWorkerHeartbeatRoute
@@ -282,6 +295,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/claim': {
+      id: '/claim'
+      path: '/claim'
+      fullPath: '/claim'
+      preLoaderRoute: typeof ClaimRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -463,6 +483,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ClaimRoute: ClaimRoute,
   ApiPublicWorkerChannelsRoute: ApiPublicWorkerChannelsRoute,
   ApiPublicWorkerForwardSlotsRoute: ApiPublicWorkerForwardSlotsRoute,
   ApiPublicWorkerHeartbeatRoute: ApiPublicWorkerHeartbeatRoute,

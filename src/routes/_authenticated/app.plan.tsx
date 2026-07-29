@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { redeemLicenseKey } from "@/lib/license.functions";
+import { listPlans } from "@/lib/plans.functions";
 import { getMySubscription } from "@/lib/subscription.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { KeyRound, Check } from "lucide-react";
+import { KeyRound, Check, ExternalLink } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/app/plan")({
   component: PlanPage,
