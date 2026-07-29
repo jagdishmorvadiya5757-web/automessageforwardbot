@@ -34,16 +34,11 @@ export const Route = createFileRoute("/_authenticated/app/plan")({
   }),
 });
 
-const PLANS = [
-  { name: "Trial", price: "Free", period: "3 days", perks: ["All features", "Unlimited rules", "Auto-starts on signup"] },
-  { name: "Pro", price: "₹499", period: "per month", perks: ["Unlimited forwarding", "Per-rule delay & limits", "Priority worker"] },
-  { name: "Business", price: "₹1499", period: "per month", perks: ["Everything in Pro", "Multiple Telegram accounts", "Priority support"] },
-];
-
 function PlanPage() {
   const qc = useQueryClient();
   const subFn = useServerFn(getMySubscription);
   const redeemFn = useServerFn(redeemLicenseKey);
+  const plansFn = useServerFn(listPlans);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -52,6 +47,9 @@ function PlanPage() {
     queryFn: () => subFn(),
     refetchInterval: 60_000,
   });
+
+  const { data: plans } = useQuery({ queryKey: ["public-plans"], queryFn: () => plansFn() });
+
 
   async function redeem(e: React.FormEvent) {
     e.preventDefault();
