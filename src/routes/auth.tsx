@@ -60,10 +60,10 @@ function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background px-4">
+    <div className="flex min-h-svh items-center justify-center bg-gradient-to-b from-brand-soft via-background to-background px-4 py-8">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-6 flex items-center justify-center gap-2 text-foreground">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-brand-foreground">
             <Send className="h-5 w-5" />
           </span>
           <span className="text-xl font-semibold">ForwardFlow</span>
@@ -89,7 +89,7 @@ function AuthPage() {
                     <Label htmlFor="si-pw">Password</Label>
                     <Input id="si-pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
                     {loading ? "Signing in…" : "Sign in"}
                   </Button>
                 </form>
@@ -108,7 +108,7 @@ function AuthPage() {
                     <Label htmlFor="su-pw">Password</Label>
                     <Input id="su-pw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
                     {loading ? "Creating…" : "Create account"}
                   </Button>
                 </form>
