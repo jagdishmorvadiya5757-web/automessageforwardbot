@@ -44,6 +44,10 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-muted: var(--brand-muted);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
