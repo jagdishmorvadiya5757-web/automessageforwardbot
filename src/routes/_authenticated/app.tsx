@@ -6,6 +6,7 @@ import { amIAdmin } from "@/lib/license.functions";
 import { Button } from "@/components/ui/button";
 import {
   Send,
+  LayoutGrid,
   ListChecks,
   ScrollText,
   ServerCog,
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/app")({
 });
 
 const nav = [
+  { to: "/app/home", label: "Home", icon: LayoutGrid, exact: false },
   { to: "/app", label: "Rules", icon: ListChecks, exact: true },
   { to: "/app/login", label: "Telegram", icon: Phone, exact: false },
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
