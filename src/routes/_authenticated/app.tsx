@@ -6,6 +6,7 @@ import { amIAdmin } from "@/lib/license.functions";
 import { Button } from "@/components/ui/button";
 import {
   Send,
+  LayoutGrid,
   ListChecks,
   ScrollText,
   ServerCog,
