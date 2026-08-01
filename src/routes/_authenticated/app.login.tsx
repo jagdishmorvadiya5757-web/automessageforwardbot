@@ -11,8 +11,29 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/select";
+import { SafetyTips } from "@/components/SafetyTips";
 import { toast } from "sonner";
 import { Phone, KeyRound, ShieldCheck, LogOut, RefreshCw, Circle } from "lucide-react";
+
+const COUNTRIES = [
+  { code: "IN", dial: "+91", flag: "🇮🇳" },
+  { code: "US", dial: "+1", flag: "🇺🇸" },
+  { code: "GB", dial: "+44", flag: "🇬🇧" },
+  { code: "AE", dial: "+971", flag: "🇦🇪" },
+  { code: "PK", dial: "+92", flag: "🇵🇰" },
+  { code: "BD", dial: "+880", flag: "🇧🇩" },
+  { code: "NG", dial: "+234", flag: "🇳🇬" },
+  { code: "ID", dial: "+62", flag: "🇮🇩" },
+  { code: "BR", dial: "+55", flag: "🇧🇷" },
+  { code: "RU", dial: "+7", flag: "🇷🇺" },
+  { code: "DE", dial: "+49", flag: "🇩🇪" },
+  { code: "FR", dial: "+33", flag: "🇫🇷" },
+  { code: "TR", dial: "+90", flag: "🇹🇷" },
+  { code: "PH", dial: "+63", flag: "🇵🇭" },
+];
 
 export const Route = createFileRoute("/_authenticated/app/login")({
   component: TelegramLoginPage,
