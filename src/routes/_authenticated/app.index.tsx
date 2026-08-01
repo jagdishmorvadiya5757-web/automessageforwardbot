@@ -328,18 +328,52 @@ function RulesPage() {
         </Card>
       </div>
 
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name, source ID or target ID"
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {(["all", "newest", "oldest", "active", "deactivated"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                filter === f
+                  ? "border-transparent bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : rules.length === 0 ? (
+      ) : visible.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No rules yet</CardTitle>
-            <CardDescription>Create your first forwarding rule to get started.</CardDescription>
+            <CardTitle>{rules.length === 0 ? "No rules yet" : "No matching rules"}</CardTitle>
+            <CardDescription>
+              {rules.length === 0
+                ? "Create your first forwarding rule to get started."
+                : "Try another search term or filter."}
+            </CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <div className="grid gap-3">
-          {rules.map((r) => (
+          {visible.map((r) => (
+
             <Card key={r.id}>
               <CardContent className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
                 <div className="min-w-0 flex-1 space-y-1">
