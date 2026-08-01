@@ -52,6 +52,24 @@ export const Route = createFileRoute("/_authenticated/app/")({
   component: RulesPage,
 });
 
+const MODIFIERS = [
+  "Add header",
+  "Add footer",
+  "Replace text",
+  "Translate language",
+  "Watermark",
+  "AI mode",
+  "Link buttons",
+  "Duplicate filter",
+  "Crypto mode",
+  "Anti-forward bypass",
+  "Auto join invite links",
+  "Paid reactions",
+  "Dialog broadcast",
+  "Smart image crop",
+  "Paid media protection",
+];
+
 const empty = {
   name: "",
   source: "",
