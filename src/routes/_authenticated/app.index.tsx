@@ -69,6 +69,8 @@ function RulesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [form, setForm] = useState(empty);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "newest" | "oldest" | "active" | "deactivated">("all");
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ["rules"],
