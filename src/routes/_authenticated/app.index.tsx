@@ -210,11 +210,10 @@ function RulesPage() {
         r.source.toLowerCase().includes(q) ||
         r.destination.toLowerCase().includes(q)
       );
-    })
-    .slice()
-    .reverse
-    ? []
-    : [];
+    });
+  // rules arrive newest-first from the query
+  if (filter === "oldest") visible.reverse();
+
 
   return (
     <div className="space-y-6">
