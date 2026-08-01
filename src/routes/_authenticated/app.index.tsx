@@ -292,7 +292,28 @@ function RulesPage() {
                   Wait this many seconds after each forward for this rule. Leave empty for no delay.
                 </p>
               </div>
+
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                  <p className="truncate text-sm font-medium">Content modifiers & filters</p>
+                  <Badge variant="secondary" className="shrink-0">Soon</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {MODIFIERS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => toast.info(`${m} is coming soon`)}
+                      className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+
             <DialogFooter>
               <Button
                 onClick={() => save.mutate()}
