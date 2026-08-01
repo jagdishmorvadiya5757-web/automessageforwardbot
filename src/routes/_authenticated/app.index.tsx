@@ -199,6 +199,23 @@ function RulesPage() {
     { forwarded: 0, active: 0 },
   );
 
+  const q = query.trim().toLowerCase();
+  const visible = rules
+    .filter((r) => {
+      if (filter === "active" && !r.enabled) return false;
+      if (filter === "deactivated" && r.enabled) return false;
+      if (!q) return true;
+      return (
+        (r.name ?? "").toLowerCase().includes(q) ||
+        r.source.toLowerCase().includes(q) ||
+        r.destination.toLowerCase().includes(q)
+      );
+    })
+    .slice()
+    .reverse
+    ? []
+    : [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
