@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown, Search, Sparkles } from "lucide-react";
 
 type EndpointType = "channel" | "bot";
 type Rule = {
