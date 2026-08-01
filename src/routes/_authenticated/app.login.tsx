@@ -187,17 +187,34 @@ function TelegramLoginPage() {
               <CardTitle className="flex items-center gap-2">
                 <Phone className="h-4 w-4" /> 1. Phone number
               </CardTitle>
-              <CardDescription>Include your country code, e.g. +14155552671.</CardDescription>
+              <CardDescription>Pick your country code and enter your Telegram number.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
                 <Label>Phone number</Label>
-                <Input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 415 555 2671"
-                  inputMode="tel"
-                />
+                <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2">
+                  <Select value={dial} onValueChange={setDial}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRIES.map((c) => (
+                        <SelectItem key={c.code} value={c.dial}>
+                          {c.flag} {c.dial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+                    placeholder="415 555 2671"
+                    inputMode="tel"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Will be sent as {fullPhone || dial}
+                </p>
               </div>
               <Button
                 onClick={() => requestCode.mutate()}
@@ -206,11 +223,12 @@ function TelegramLoginPage() {
                 {status === "code_requested" ? (
                   <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Waiting for worker…</>
                 ) : (
-                  "Send code"
+                  "Next"
                 )}
               </Button>
             </CardContent>
           </Card>
+
 
           {(status === "awaiting_code" ||
             status === "password_needed" ||
