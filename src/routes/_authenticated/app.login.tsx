@@ -78,7 +78,7 @@ function TelegramLoginPage() {
       const { error } = await supabase.from("telegram_auth").upsert(
         {
           user_id: id,
-          phone: phone.trim(),
+          phone: fullPhone,
           status: "code_requested",
           pending_action: "request_code",
           code: null,
