@@ -51,9 +51,11 @@ const STATUS_LABEL: Record<string, string> = {
 function TelegramLoginPage() {
   const qc = useQueryClient();
   const fetchTelegramState = useServerFn(getTelegramConnectionState);
+  const [dial, setDial] = useState("+91");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const fullPhone = phone.trim() ? `${dial}${phone.replace(/\s/g, "")}` : "";
 
   const { data: state } = useQuery({
     queryKey: ["telegram-auth"],
