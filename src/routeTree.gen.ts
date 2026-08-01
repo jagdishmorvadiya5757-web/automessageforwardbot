@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
+import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppPlanRouteImport } from './routes/_authenticated/app.plan'
 import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
 import { Route as AuthenticatedAppLoginRouteImport } from './routes/_authenticated/app.login'
@@ -64,6 +65,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
 const AuthenticatedAppWorkerRoute = AuthenticatedAppWorkerRouteImport.update({
   id: '/worker',
   path: '/worker',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
 const AuthenticatedAppPlanRoute = AuthenticatedAppPlanRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/app/login': typeof AuthenticatedAppLoginRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/plan': typeof AuthenticatedAppPlanRoute
+  '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
@@ -180,6 +187,7 @@ export interface FileRoutesByTo {
   '/app/login': typeof AuthenticatedAppLoginRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/plan': typeof AuthenticatedAppPlanRoute
+  '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/app/login': typeof AuthenticatedAppLoginRoute
   '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
   '/_authenticated/app/plan': typeof AuthenticatedAppPlanRoute
+  '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
   '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/app/login'
     | '/app/logs'
     | '/app/plan'
+    | '/app/profile'
     | '/app/worker'
     | '/app/'
     | '/api/public/worker/channels'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/app/login'
     | '/app/logs'
     | '/app/plan'
+    | '/app/profile'
     | '/app/worker'
     | '/app'
     | '/api/public/worker/channels'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/login'
     | '/_authenticated/app/logs'
     | '/_authenticated/app/plan'
+    | '/_authenticated/app/profile'
     | '/_authenticated/app/worker'
     | '/_authenticated/app/'
     | '/api/public/worker/channels'
@@ -354,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: '/worker'
       fullPath: '/app/worker'
       preLoaderRoute: typeof AuthenticatedAppWorkerRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/profile': {
+      id: '/_authenticated/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/plan': {
@@ -471,6 +490,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppLoginRoute: typeof AuthenticatedAppLoginRoute
   AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
   AuthenticatedAppPlanRoute: typeof AuthenticatedAppPlanRoute
+  AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppWorkerRoute: typeof AuthenticatedAppWorkerRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
@@ -482,6 +502,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppLoginRoute: AuthenticatedAppLoginRoute,
   AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
   AuthenticatedAppPlanRoute: AuthenticatedAppPlanRoute,
+  AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppWorkerRoute: AuthenticatedAppWorkerRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
@@ -518,13 +539,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
