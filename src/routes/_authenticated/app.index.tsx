@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown, Search, Sparkles } from "lucide-react";
 
 type EndpointType = "channel" | "bot";
 type Rule = {
@@ -52,6 +52,24 @@ export const Route = createFileRoute("/_authenticated/app/")({
   component: RulesPage,
 });
 
+const MODIFIERS = [
+  "Add header",
+  "Add footer",
+  "Replace text",
+  "Translate language",
+  "Watermark",
+  "AI mode",
+  "Link buttons",
+  "Duplicate filter",
+  "Crypto mode",
+  "Anti-forward bypass",
+  "Auto join invite links",
+  "Paid reactions",
+  "Dialog broadcast",
+  "Smart image crop",
+  "Paid media protection",
+];
+
 const empty = {
   name: "",
   source: "",
@@ -69,6 +87,8 @@ function RulesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [form, setForm] = useState(empty);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "newest" | "oldest" | "active" | "deactivated">("all");
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ["rules"],
@@ -197,6 +217,22 @@ function RulesPage() {
     { forwarded: 0, active: 0 },
   );
 
+  const q = query.trim().toLowerCase();
+  const visible = rules
+    .filter((r) => {
+      if (filter === "active" && !r.enabled) return false;
+      if (filter === "deactivated" && r.enabled) return false;
+      if (!q) return true;
+      return (
+        (r.name ?? "").toLowerCase().includes(q) ||
+        r.source.toLowerCase().includes(q) ||
+        r.destination.toLowerCase().includes(q)
+      );
+    });
+  // rules arrive newest-first from the query
+  if (filter === "oldest") visible.reverse();
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -274,7 +310,28 @@ function RulesPage() {
                   Wait this many seconds after each forward for this rule. Leave empty for no delay.
                 </p>
               </div>
+
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                  <p className="truncate text-sm font-medium">Content modifiers & filters</p>
+                  <Badge variant="secondary" className="shrink-0">Soon</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {MODIFIERS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => toast.info(`${m} is coming soon`)}
+                      className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+
             <DialogFooter>
               <Button
                 onClick={() => save.mutate()}
@@ -310,18 +367,52 @@ function RulesPage() {
         </Card>
       </div>
 
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name, source ID or target ID"
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {(["all", "newest", "oldest", "active", "deactivated"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                filter === f
+                  ? "border-transparent bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : rules.length === 0 ? (
+      ) : visible.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No rules yet</CardTitle>
-            <CardDescription>Create your first forwarding rule to get started.</CardDescription>
+            <CardTitle>{rules.length === 0 ? "No rules yet" : "No matching rules"}</CardTitle>
+            <CardDescription>
+              {rules.length === 0
+                ? "Create your first forwarding rule to get started."
+                : "Try another search term or filter."}
+            </CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <div className="grid gap-3">
-          {rules.map((r) => (
+          {visible.map((r) => (
+
             <Card key={r.id}>
               <CardContent className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
                 <div className="min-w-0 flex-1 space-y-1">

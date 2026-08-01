@@ -11,8 +11,29 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/select";
+import { SafetyTips } from "@/components/SafetyTips";
 import { toast } from "sonner";
 import { Phone, KeyRound, ShieldCheck, LogOut, RefreshCw, Circle } from "lucide-react";
+
+const COUNTRIES = [
+  { code: "IN", dial: "+91", flag: "🇮🇳" },
+  { code: "US", dial: "+1", flag: "🇺🇸" },
+  { code: "GB", dial: "+44", flag: "🇬🇧" },
+  { code: "AE", dial: "+971", flag: "🇦🇪" },
+  { code: "PK", dial: "+92", flag: "🇵🇰" },
+  { code: "BD", dial: "+880", flag: "🇧🇩" },
+  { code: "NG", dial: "+234", flag: "🇳🇬" },
+  { code: "ID", dial: "+62", flag: "🇮🇩" },
+  { code: "BR", dial: "+55", flag: "🇧🇷" },
+  { code: "RU", dial: "+7", flag: "🇷🇺" },
+  { code: "DE", dial: "+49", flag: "🇩🇪" },
+  { code: "FR", dial: "+33", flag: "🇫🇷" },
+  { code: "TR", dial: "+90", flag: "🇹🇷" },
+  { code: "PH", dial: "+63", flag: "🇵🇭" },
+];
 
 export const Route = createFileRoute("/_authenticated/app/login")({
   component: TelegramLoginPage,
@@ -30,9 +51,11 @@ const STATUS_LABEL: Record<string, string> = {
 function TelegramLoginPage() {
   const qc = useQueryClient();
   const fetchTelegramState = useServerFn(getTelegramConnectionState);
+  const [dial, setDial] = useState("+91");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const fullPhone = phone.trim() ? `${dial}${phone.replace(/\s/g, "")}` : "";
 
   const { data: state } = useQuery({
     queryKey: ["telegram-auth"],
@@ -55,7 +78,7 @@ function TelegramLoginPage() {
       const { error } = await supabase.from("telegram_auth").upsert(
         {
           user_id: id,
-          phone: phone.trim(),
+          phone: fullPhone,
           status: "code_requested",
           pending_action: "request_code",
           code: null,
@@ -187,17 +210,34 @@ function TelegramLoginPage() {
               <CardTitle className="flex items-center gap-2">
                 <Phone className="h-4 w-4" /> 1. Phone number
               </CardTitle>
-              <CardDescription>Include your country code, e.g. +14155552671.</CardDescription>
+              <CardDescription>Pick your country code and enter your Telegram number.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
                 <Label>Phone number</Label>
-                <Input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 415 555 2671"
-                  inputMode="tel"
-                />
+                <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2">
+                  <Select value={dial} onValueChange={setDial}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRIES.map((c) => (
+                        <SelectItem key={c.code} value={c.dial}>
+                          {c.flag} {c.dial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+                    placeholder="415 555 2671"
+                    inputMode="tel"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Will be sent as {fullPhone || dial}
+                </p>
               </div>
               <Button
                 onClick={() => requestCode.mutate()}
@@ -206,11 +246,12 @@ function TelegramLoginPage() {
                 {status === "code_requested" ? (
                   <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Waiting for worker…</>
                 ) : (
-                  "Send code"
+                  "Next"
                 )}
               </Button>
             </CardContent>
           </Card>
+
 
           {(status === "awaiting_code" ||
             status === "password_needed" ||
@@ -267,8 +308,10 @@ function TelegramLoginPage() {
               </CardContent>
             </Card>
           )}
+          <SafetyTips />
         </>
       )}
     </div>
+
   );
 }

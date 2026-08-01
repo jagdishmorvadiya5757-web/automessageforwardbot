@@ -15,6 +15,7 @@ import {
   Radio,
   CreditCard,
   Shield,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TrialBanner } from "@/components/TrialBanner";
@@ -30,6 +31,7 @@ const nav = [
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
   { to: "/app/plan", label: "Plan", icon: CreditCard, exact: false },
+  { to: "/app/profile", label: "Profile", icon: UserCog, exact: false },
 ];
 
 
