@@ -308,8 +308,10 @@ function TelegramLoginPage() {
               </CardContent>
             </Card>
           )}
+          <SafetyTips />
         </>
       )}
     </div>
+
   );
 }
