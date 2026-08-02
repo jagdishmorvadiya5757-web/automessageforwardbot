@@ -1,10 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Send,
   ArrowRight,
-  ArrowLeft,
   Filter,
   ShieldCheck,
   Clock,
@@ -16,7 +14,13 @@ import {
   Repeat,
   AlignLeft,
   Sparkles,
-  MessageSquare,
+  Link2,
+  Image as ImageIcon,
+  Bitcoin,
+  Activity,
+  Lock,
+  Plug,
+  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,312 +31,332 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Automatically forward Telegram messages between channels, groups and bots with smart filters, scheduling and delivery controls.",
+          "Automatically forward Telegram messages between channels, groups and bots with smart filters, AI rewriting, scheduling and enterprise-grade reliability.",
       },
       { property: "og:title", content: "ForwardFlow · Telegram Auto Forward Made Simple" },
       {
         property: "og:description",
         content:
-          "Set up forwarding rules once and let ForwardFlow mirror Telegram messages in real time with filters and delays.",
+          "Set forwarding rules once and let the autonomous cloud worker mirror your Telegram messages with filters, delays and AI rewriting.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Onboarding,
+  component: Landing,
 });
 
-function Pill({ icon: Icon, label, tone = "default" }: { icon?: React.ElementType; label: string; tone?: "default" | "brand" | "danger" }) {
+function Glass({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <span
+    <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-semibold shadow-sm",
-        tone === "brand" && "border-brand/30 text-brand",
-        tone === "danger" && "border-destructive/30 text-destructive",
-        tone === "default" && "text-foreground",
+        "rounded-3xl border border-border/60 bg-card/70 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-2xl",
+        className,
       )}
     >
-      {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
-      {label}
-    </span>
+      {children}
+    </div>
   );
 }
 
-function TgTile({ size = "lg" }: { size?: "lg" | "sm" }) {
+function Node({ label, sub }: { label: string; sub: string }) {
   return (
-    <span
-      className={cn(
-        "grid shrink-0 place-items-center rounded-full bg-[#2AABEE] text-white shadow-lg",
-        size === "lg" ? "h-20 w-20" : "h-14 w-14",
-      )}
-    >
-      <Send className={size === "lg" ? "h-9 w-9 -ml-1" : "h-6 w-6 -ml-0.5"} />
-    </span>
+    <div className="flex min-w-0 flex-col items-center gap-3 rounded-3xl border border-brand/25 bg-card/80 px-6 py-6 shadow-lg backdrop-blur-xl">
+      <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#2AABEE] text-white shadow-lg">
+        <Send className="-ml-1 h-7 w-7" />
+      </span>
+      <span className="text-sm font-bold text-brand">{label}</span>
+      <span className="text-xs text-muted-foreground">{sub}</span>
+    </div>
   );
 }
 
-function Dots() {
+function SectionHead({ eyebrow, title, desc }: { eyebrow: string; title: string; desc?: string }) {
   return (
-    <span className="flex items-center gap-1.5">
-      {[0, 1, 2].map((i) => (
-        <span key={i} className="h-1.5 w-1.5 rounded-full bg-brand/50" />
-      ))}
-    </span>
+    <div className="mx-auto max-w-2xl text-center">
+      <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-brand">
+        {eyebrow}
+      </span>
+      <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h2>
+      {desc ? <p className="mt-3 text-base text-muted-foreground">{desc}</p> : null}
+    </div>
   );
 }
 
-const slides = [
+const setupSteps = [
   {
-    key: "Overview",
-    title: "Auto Forward Made Simple",
-    desc: "Automatically forward messages from any Telegram group, channel, user, or bot. Set it once and let the worker do the rest.",
-    art: (
-      <div className="flex items-center justify-center gap-3">
-        <div className="flex flex-col items-center gap-3">
-          <TgTile />
-          <span className="text-sm font-semibold text-brand">Source</span>
-        </div>
-        <Dots />
-        <div className="flex flex-col items-center gap-3">
-          <TgTile />
-          <span className="text-sm font-semibold text-brand">Destination</span>
-        </div>
-      </div>
-    ),
+    icon: Plug,
+    title: "Instant Connection",
+    desc: "Link Telegram via secure API and user sessions — no bot admin gymnastics, no message copying by hand.",
   },
   {
-    key: "Setup",
-    title: "Launch In Minutes",
-    desc: "Connect Telegram, choose source and destination, then start forwarding right away.",
-    art: (
-      <div className="grid grid-cols-2 gap-4">
-        {["Source", "Destination"].map((label) => (
-          <div key={label} className="rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-2 border-b pb-3">
-              <TgTile size="sm" />
-              <span className="text-sm font-semibold text-brand">{label}</span>
-            </div>
-            <div className="mt-3 flex flex-col items-start gap-2">
-              {["Automation", "Filters", "Delay", "Limits"].map((t) => (
-                <span key={t} className="rounded-lg bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand">
-                  {t}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    ),
+    icon: Clock,
+    title: "Automation & Scheduling",
+    desc: "Queue and delay posts precisely using custom per-rule time settings, so nothing is skipped or rate-limited.",
   },
   {
-    key: "Schedule",
-    title: "Delay Every Delivery",
-    desc: "Give each rule its own delay so Telegram never rate-limits you, and no message is ever skipped.",
-    art: (
-      <div className="flex items-center justify-center gap-3">
-        <TgTile size="sm" />
-        <div className="rounded-2xl border bg-card px-4 py-3 shadow-md">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-brand" />
-            <span className="font-semibold">2.0s delay</span>
-          </div>
-          <div className="mt-2 flex items-center gap-3 border-t pt-2 text-brand">
-            <CheckCircle2 className="h-4 w-4" />
-            <RefreshCw className="h-4 w-4" />
-            <Zap className="h-4 w-4" />
-          </div>
-        </div>
-        <TgTile size="sm" />
-      </div>
-    ),
-  },
-  {
-    key: "Control",
-    title: "Safe & Secure",
-    desc: "Your data stays private. Messages move through Telegram's API, and sessions are encrypted at rest.",
-    art: (
-      <div className="flex flex-col items-center gap-5">
-        <div className="grid h-40 w-40 place-items-center rounded-full border-4 border-brand/25 bg-brand-soft">
-          <ShieldCheck className="h-9 w-9 text-brand" />
-          <span className="text-3xl font-extrabold text-brand">100%</span>
-          <span className="text-xs text-muted-foreground">uptime</span>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Pill icon={ShieldCheck} label="Protected" tone="brand" />
-          <Pill icon={CheckCircle2} label="Healthy" />
-          <Pill icon={RefreshCw} label="Auto retry" />
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "Filters",
-    title: "Smart Filtering",
-    desc: "Use whitelist and blacklist keywords to forward only the messages that matter.",
-    art: (
-      <div className="flex flex-col items-center gap-5">
-        <div className="flex items-center gap-4">
-          <TgTile size="sm" />
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand">
-            <Filter className="h-5 w-5" />
-          </span>
-          <div className="flex flex-col gap-2">
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-destructive/30 text-destructive">
-              <Ban className="h-4 w-4" />
-            </span>
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-brand/30 text-brand">
-              <MessageSquare className="h-4 w-4" />
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Pill icon={CheckCircle2} label="Whitelist" tone="brand" />
-          <Pill icon={Ban} label="Blacklist" tone="danger" />
-          <Pill icon={Filter} label="Keyword filters" />
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "Stack",
-    title: "Stack Powerful Automation",
-    desc: "Combine filters, limits, delays and live counters in one forwarding flow.",
-    art: (
-      <div className="flex flex-col items-center gap-3">
-        <TgTile size="sm" />
-        <div className="grid w-full grid-cols-2 gap-2">
-          {[
-            { icon: Filter, label: "Filters" },
-            { icon: Repeat, label: "Replace" },
-            { icon: Languages, label: "Language" },
-            { icon: Sparkles, label: "Auto stop" },
-            { icon: AlignLeft, label: "Header / Footer" },
-            { icon: Clock, label: "Delay" },
-          ].map((f) => (
-            <span key={f.label} className="flex items-center gap-2 rounded-xl border bg-card px-3 py-2 text-xs font-semibold shadow-sm">
-              <f.icon className="h-4 w-4 shrink-0 text-brand" />
-              <span className="truncate">{f.label}</span>
-            </span>
-          ))}
-        </div>
-        <TgTile size="sm" />
-      </div>
-    ),
-  },
-  {
-    key: "Finish",
-    title: "Ready To Start?",
-    desc: "Create an account or log in to launch your first Telegram forwarding workflow.",
-    art: (
-      <div className="flex flex-col items-center gap-5">
-        <div className="flex w-full items-center justify-between">
-          <div className="flex flex-col items-center gap-2">
-            <TgTile />
-            <span className="text-sm font-semibold text-brand">Source</span>
-          </div>
-          <Dots />
-          <div className="flex flex-col items-center gap-2">
-            <TgTile />
-            <span className="text-sm font-semibold text-brand">Destination</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Pill icon={Zap} label="Automation" tone="brand" />
-          <Pill icon={Filter} label="Smart filters" />
-          <Pill icon={Clock} label="Delays" />
-        </div>
-      </div>
-    ),
+    icon: Sparkles,
+    title: "AI-Powered Rewrite",
+    desc: "Transform, translate, or rewrite text dynamically before delivery — every post lands on-brand.",
   },
 ];
 
-function Onboarding() {
-  const [i, setI] = useState(0);
-  const startX = useRef<number | null>(null);
-  const last = i === slides.length - 1;
-  const s = slides[i];
+const pipeline = [
+  {
+    step: "01",
+    icon: Filter,
+    title: "Filters & Whitelist / Blacklist",
+    desc: "Filter out spam using keyword or user rules before anything leaves the source.",
+    tags: [
+      { icon: CheckCircle2, label: "Whitelist" },
+      { icon: Ban, label: "Blacklist" },
+      { icon: Filter, label: "Keyword rules" },
+    ],
+  },
+  {
+    step: "02",
+    icon: Repeat,
+    title: "Content Modifiers",
+    desc: "Text replacement, header/footer injection, and multi-language translation applied in flight.",
+    tags: [
+      { icon: Repeat, label: "Replace" },
+      { icon: AlignLeft, label: "Header / Footer" },
+      { icon: Languages, label: "Translate" },
+    ],
+  },
+  {
+    step: "03",
+    icon: Zap,
+    title: "Advanced Add-ons",
+    desc: "Anti-forward bypass, smart image cropping, crypto mode, and link button injection on delivery.",
+    tags: [
+      { icon: ShieldCheck, label: "Bypass" },
+      { icon: ImageIcon, label: "Smart crop" },
+      { icon: Bitcoin, label: "Crypto mode" },
+      { icon: Link2, label: "Link buttons" },
+    ],
+  },
+];
 
-  function go(n: number) {
-    setI((v) => Math.min(slides.length - 1, Math.max(0, v + n)));
-  }
-
+function Landing() {
   return (
-    <div className="flex min-h-svh flex-col bg-gradient-to-b from-brand-soft via-background to-background">
-      <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-4 pt-5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {slides.map((sl, idx) => (
-            <button
-              key={sl.key}
-              aria-label={`Go to ${sl.key}`}
-              onClick={() => setI(idx)}
-              className={cn(
-                "h-2 rounded-full transition-all",
-                idx === i ? "w-7 bg-brand" : "w-2 bg-brand-muted",
-              )}
-            />
-          ))}
+    <div className="min-h-svh bg-gradient-to-b from-brand-soft via-background to-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-brand-foreground">
+            <Send className="-ml-0.5 h-4 w-4" />
+          </span>
+          <span className="truncate text-lg font-extrabold tracking-tight">ForwardFlow</span>
         </div>
-        <Link to="/auth" className="shrink-0 text-sm font-semibold text-muted-foreground hover:text-foreground">
-          Skip
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button asChild variant="ghost" className="font-semibold">
+            <Link to="/auth">Login</Link>
+          </Button>
+          <Button asChild className="bg-brand font-bold text-brand-foreground hover:bg-brand/90">
+            <Link to="/auth">Get started</Link>
+          </Button>
+        </div>
       </header>
 
-      <main
-        className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-4 py-6"
-        onTouchStart={(e) => (startX.current = e.touches[0].clientX)}
-        onTouchEnd={(e) => {
-          if (startX.current === null) return;
-          const dx = e.changedTouches[0].clientX - startX.current;
-          if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
-          startX.current = null;
-        }}
-      >
-        <section className="rounded-[2rem] border bg-card/80 p-6 shadow-xl backdrop-blur sm:p-10">
-          <h1 className="text-center text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            {s.title}
+      {/* Hero */}
+      <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-2 lg:py-20">
+        <div className="min-w-0">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-brand">
+            <Activity className="h-3.5 w-3.5" /> Autonomous cloud worker
+          </span>
+          <h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
+            Auto Forward <span className="text-brand">Made Simple</span>
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-center text-base text-muted-foreground">{s.desc}</p>
-          <div className="mt-8">{s.art}</div>
-        </section>
-        <p className="mt-5 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Swipe to explore
-        </p>
-      </main>
-
-      <footer className="mx-auto w-full max-w-2xl px-4 pb-8">
-        {last ? (
-          <div className="space-y-3">
-            <Button asChild size="lg" className="h-14 w-full rounded-2xl bg-brand text-base font-bold text-brand-foreground hover:bg-brand/90">
-              <Link to="/auth">Register</Link>
+          <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+            Automatically forward messages from any Telegram group, channel, user, or bot. Set it once and let the
+            autonomous cloud worker do the rest.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button asChild size="lg" className="h-13 rounded-2xl bg-brand px-7 text-base font-bold text-brand-foreground hover:bg-brand/90">
+              <Link to="/auth">
+                Start forwarding <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
             </Button>
-            <Button asChild size="lg" variant="secondary" className="h-14 w-full rounded-2xl text-base font-bold">
+            <Button asChild size="lg" variant="secondary" className="h-13 rounded-2xl px-7 text-base font-bold">
               <Link to="/auth">Login</Link>
             </Button>
           </div>
-        ) : (
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-            <Button
-              variant="secondary"
-              size="lg"
-              className={cn("h-14 w-14 rounded-2xl", i === 0 && "invisible")}
-              onClick={() => go(-1)}
-              aria-label="Previous"
-            >
-              <ArrowLeft className="h-5 w-5" />
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-muted-foreground">
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /> No message skipped</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /> Per-rule delays</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /> Encrypted sessions</span>
+          </div>
+        </div>
+
+        <Glass className="relative overflow-hidden p-8">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+            <Node label="Source" sub="Channel / Group" />
+            <div className="flex flex-col items-center gap-2">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-2 w-2 rounded-full bg-brand/70 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]"
+                  style={{ animationDelay: `${i * 0.25}s` }}
+                />
+              ))}
+              <ArrowRight className="h-5 w-5 text-brand" />
+            </div>
+            <Node label="Destination" sub="Channel / Bot" />
+          </div>
+          <div className="mt-6 grid gap-2 rounded-2xl border border-border/60 bg-background/60 p-4 text-sm">
+            {[
+              { icon: CheckCircle2, text: "Message forwarded · 240 ms" },
+              { icon: Filter, text: "Keyword filter passed" },
+              { icon: Clock, text: "Queued with 2.0s delay" },
+            ].map((r) => (
+              <div key={r.text} className="flex min-w-0 items-center gap-2">
+                <r.icon className="h-4 w-4 shrink-0 text-brand" />
+                <span className="truncate font-medium text-muted-foreground">{r.text}</span>
+              </div>
+            ))}
+          </div>
+        </Glass>
+      </section>
+
+      {/* Launch in minutes */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16">
+        <SectionHead
+          eyebrow="Launch in minutes"
+          title="From zero to forwarding in three moves"
+          desc="Connect, configure, and let automation handle every message that follows."
+        />
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {setupSteps.map((f) => (
+            <Glass key={f.title}>
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand">
+                <f.icon className="h-6 w-6" />
+              </span>
+              <h3 className="mt-5 text-lg font-bold">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+            </Glass>
+          ))}
+        </div>
+      </section>
+
+      {/* Security */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-brand">
+              <Lock className="h-3.5 w-3.5" /> Security
+            </span>
+            <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Enterprise-Grade Cloud Security
+            </h2>
+            <p className="mt-4 text-base text-muted-foreground">
+              Your data stays private. Messages route securely through Telegram’s API with zero extra storage or
+              message snooping.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {[
+                { icon: ShieldCheck, label: "AES-256 encrypted sessions" },
+                { icon: RefreshCw, label: "Automatic retry on failure" },
+                { icon: Gauge, label: "Fast mode delivery" },
+                { icon: Activity, label: "Live worker health checks" },
+              ].map((x) => (
+                <div key={x.label} className="flex min-w-0 items-center gap-3 rounded-2xl border bg-card/70 px-4 py-3 backdrop-blur">
+                  <x.icon className="h-5 w-5 shrink-0 text-brand" />
+                  <span className="truncate text-sm font-semibold">{x.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Glass className="p-7">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">System health</p>
+                <p className="truncate text-2xl font-extrabold">All systems operational</p>
+              </div>
+              <span className="flex shrink-0 items-center gap-2 rounded-full border border-brand/30 bg-brand-soft px-3 py-1.5 text-xs font-bold text-brand">
+                <span className="h-2 w-2 rounded-full bg-brand" /> Live
+              </span>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {[
+                { k: "Uptime", v: "100%" },
+                { k: "Worker", v: "Active" },
+                { k: "Mode", v: "Fast" },
+                { k: "Retries", v: "Auto" },
+              ].map((m) => (
+                <div key={m.k} className="rounded-2xl border bg-background/60 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.k}</p>
+                  <p className="mt-1 text-xl font-extrabold text-brand">{m.v}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 space-y-2">
+              {[92, 78, 96, 64, 88, 99].map((h, i) => (
+                <div key={i} className="h-2 overflow-hidden rounded-full bg-brand-muted/40">
+                  <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${h}%` }} />
+                </div>
+              ))}
+            </div>
+          </Glass>
+        </div>
+      </section>
+
+      {/* Pipeline */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16">
+        <SectionHead
+          eyebrow="Stack powerful automation"
+          title="Rules that stack, step by step"
+          desc="Every message flows through your pipeline in order — filter, modify, then deliver."
+        />
+        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          {pipeline.map((p) => (
+            <Glass key={p.step} className="relative">
+              <span className="text-5xl font-black text-brand/15">{p.step}</span>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
+                  <p.icon className="h-5 w-5" />
+                </span>
+                <h3 className="min-w-0 truncate text-lg font-bold">{p.title}</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {p.tags.map((t) => (
+                  <span
+                    key={t.label}
+                    className="inline-flex items-center gap-1.5 rounded-full border bg-background/70 px-3 py-1.5 text-xs font-semibold transition-colors hover:border-brand/40 hover:text-brand"
+                  >
+                    <t.icon className="h-3.5 w-3.5 shrink-0" />
+                    {t.label}
+                  </span>
+                ))}
+              </div>
+            </Glass>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="mx-auto w-full max-w-6xl px-4 pb-20 pt-6">
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-brand/30 bg-brand-soft/70 p-10 text-center shadow-2xl backdrop-blur-xl sm:p-16">
+          <h2 className="text-3xl font-extrabold tracking-tight sm:text-5xl">Ready to start?</h2>
+          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+            Create an account or log in to launch your first automated Telegram workflow — it takes less than a minute.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg" className="h-14 rounded-2xl bg-brand px-8 text-base font-bold text-brand-foreground hover:bg-brand/90">
+              <Link to="/auth">
+                Register free <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
             </Button>
-            <Button
-              size="lg"
-              className="h-14 w-full rounded-2xl bg-brand text-base font-bold text-brand-foreground hover:bg-brand/90"
-              onClick={() => go(1)}
-            >
-              Next <ArrowRight className="ml-2 h-5 w-5" />
+            <Button asChild size="lg" variant="secondary" className="h-14 rounded-2xl px-8 text-base font-bold">
+              <Link to="/auth">Login</Link>
             </Button>
           </div>
-        )}
-        <p className="mt-3 text-center text-sm font-medium text-muted-foreground">
-          {i + 1}/{slides.length} · {s.key}
+        </div>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          © {new Date().getFullYear()} ForwardFlow · Telegram automation for teams and creators.
         </p>
-      </footer>
+      </section>
     </div>
   );
 }
