@@ -30,9 +30,12 @@ const nav = [
   { to: "/app/login", label: "Telegram", icon: Phone, exact: false },
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
+  { to: "/app/rewards", label: "Rewards", icon: Gift, exact: false },
+  { to: "/app/wallet", label: "Wallet", icon: Wallet, exact: false },
   { to: "/app/plan", label: "Plan", icon: CreditCard, exact: false },
   { to: "/app/profile", label: "Profile", icon: UserCog, exact: false },
 ];
+
 
 
 function AppLayout() {
