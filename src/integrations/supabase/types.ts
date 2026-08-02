@@ -56,6 +56,63 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_transactions: {
+        Row: {
+          amount: number
+          counterparty_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          counterparty_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          counterparty_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_checkins: {
+        Row: {
+          created_at: string
+          credits_awarded: number
+          day: string
+          id: string
+          streak: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_awarded?: number
+          day?: string
+          id?: string
+          streak?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_awarded?: number
+          day?: string
+          id?: string
+          streak?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       forwarding_logs: {
         Row: {
           created_at: string
@@ -96,53 +153,86 @@ export type Database = {
       }
       forwarding_rules: {
         Row: {
+          ai_rewrite: boolean
+          auto_join: boolean
+          block_media: boolean
           created_at: string
+          crypto_mode: boolean
           destination: string
           destination_type: Database["public"]["Enums"]["endpoint_type"]
           enabled: boolean
           exclude_keywords: string[]
+          footer_text: string | null
           forward_delay: number
           forwarded_count: number
+          header_text: string | null
           id: string
           include_keywords: string[]
           max_forward_count: number | null
           name: string | null
+          replacements: Json
+          sender_blacklist: string[]
+          sender_whitelist: string[]
           source: string
           source_type: Database["public"]["Enums"]["endpoint_type"]
+          strip_forward_tag: boolean
+          translate_to: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_rewrite?: boolean
+          auto_join?: boolean
+          block_media?: boolean
           created_at?: string
+          crypto_mode?: boolean
           destination: string
           destination_type?: Database["public"]["Enums"]["endpoint_type"]
           enabled?: boolean
           exclude_keywords?: string[]
+          footer_text?: string | null
           forward_delay?: number
           forwarded_count?: number
+          header_text?: string | null
           id?: string
           include_keywords?: string[]
           max_forward_count?: number | null
           name?: string | null
+          replacements?: Json
+          sender_blacklist?: string[]
+          sender_whitelist?: string[]
           source: string
           source_type?: Database["public"]["Enums"]["endpoint_type"]
+          strip_forward_tag?: boolean
+          translate_to?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_rewrite?: boolean
+          auto_join?: boolean
+          block_media?: boolean
           created_at?: string
+          crypto_mode?: boolean
           destination?: string
           destination_type?: Database["public"]["Enums"]["endpoint_type"]
           enabled?: boolean
           exclude_keywords?: string[]
+          footer_text?: string | null
           forward_delay?: number
           forwarded_count?: number
+          header_text?: string | null
           id?: string
           include_keywords?: string[]
           max_forward_count?: number | null
           name?: string | null
+          replacements?: Json
+          sender_blacklist?: string[]
+          sender_whitelist?: string[]
           source?: string
           source_type?: Database["public"]["Enums"]["endpoint_type"]
+          strip_forward_tag?: boolean
+          translate_to?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -240,19 +330,46 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          referral_code: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           id: string
+          referral_code?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           display_name?: string | null
           id?: string
+          referral_code?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          credits_awarded: number
+          id: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referred_id?: string
+          referrer_id?: string
         }
         Relationships: []
       }
@@ -415,6 +532,63 @@ export type Database = {
         }
         Relationships: []
       }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          lifetime_earned: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          lifetime_earned?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          lifetime_earned?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      worker_health: {
+        Row: {
+          active_clients: number
+          detail: string | null
+          id: number
+          last_heartbeat: string | null
+          queued_messages: number
+          started_at: string | null
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          active_clients?: number
+          detail?: string | null
+          id?: number
+          last_heartbeat?: string | null
+          queued_messages?: number
+          started_at?: string | null
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          active_clients?: number
+          detail?: string | null
+          id?: number
+          last_heartbeat?: string | null
+          queued_messages?: number
+          started_at?: string | null
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       worker_tokens: {
         Row: {
           created_at: string
@@ -447,6 +621,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      award_credits: {
+        Args: {
+          _amount: number
+          _counterparty?: string
+          _kind: string
+          _note?: string
+          _user_id: string
+        }
+        Returns: number
+      }
       claim_license_key: {
         Args: { _code: string }
         Returns: {
@@ -454,6 +638,16 @@ export type Database = {
           license_code: string
           message: string
           plan: Database["public"]["Enums"]["subscription_plan"]
+          success: boolean
+        }[]
+      }
+      daily_checkin: {
+        Args: { _user_id: string }
+        Returns: {
+          balance: number
+          credits: number
+          message: string
+          streak: number
           success: boolean
         }[]
       }
@@ -482,6 +676,14 @@ export type Database = {
           success: boolean
         }[]
       }
+      redeem_referral: {
+        Args: { _code: string; _referred: string }
+        Returns: {
+          credits: number
+          message: string
+          success: boolean
+        }[]
+      }
       release_forwarding_slot: {
         Args: { _rule_id: string; _user_id: string }
         Returns: {
@@ -496,6 +698,14 @@ export type Database = {
           disabled: boolean
           forwarded_count: number
           max_forward_count: number
+        }[]
+      }
+      transfer_credits: {
+        Args: { _amount: number; _from: string; _note?: string; _to: string }
+        Returns: {
+          balance: number
+          message: string
+          success: boolean
         }[]
       }
     }
