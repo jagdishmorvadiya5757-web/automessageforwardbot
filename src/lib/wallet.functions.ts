@@ -64,7 +64,7 @@ export const transferCredits = createServerFn({ method: "POST" })
       _from: context.userId,
       _to: data.toUserId,
       _amount: data.amount,
-      _note: data.note ?? null,
+      _note: data.note ?? undefined,
     });
     if (error) throw new Error(error.message);
     const row = Array.isArray(rows) ? rows[0] : rows;
