@@ -17,6 +17,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
 import { Route as AuthenticatedAppWalletRouteImport } from './routes/_authenticated/app.wallet'
+import { Route as AuthenticatedAppRewardsRouteImport } from './routes/_authenticated/app.rewards'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppPlanRouteImport } from './routes/_authenticated/app.plan'
 import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
@@ -71,6 +72,11 @@ const AuthenticatedAppWorkerRoute = AuthenticatedAppWorkerRouteImport.update({
 const AuthenticatedAppWalletRoute = AuthenticatedAppWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppRewardsRoute = AuthenticatedAppRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
 const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/plan': typeof AuthenticatedAppPlanRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
+  '/app/rewards': typeof AuthenticatedAppRewardsRoute
   '/app/wallet': typeof AuthenticatedAppWalletRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/app/logs': typeof AuthenticatedAppLogsRoute
   '/app/plan': typeof AuthenticatedAppPlanRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
+  '/app/rewards': typeof AuthenticatedAppRewardsRoute
   '/app/wallet': typeof AuthenticatedAppWalletRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
   '/_authenticated/app/plan': typeof AuthenticatedAppPlanRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
+  '/_authenticated/app/rewards': typeof AuthenticatedAppRewardsRoute
   '/_authenticated/app/wallet': typeof AuthenticatedAppWalletRoute
   '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/app/logs'
     | '/app/plan'
     | '/app/profile'
+    | '/app/rewards'
     | '/app/wallet'
     | '/app/worker'
     | '/app/'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/app/logs'
     | '/app/plan'
     | '/app/profile'
+    | '/app/rewards'
     | '/app/wallet'
     | '/app/worker'
     | '/app'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/logs'
     | '/_authenticated/app/plan'
     | '/_authenticated/app/profile'
+    | '/_authenticated/app/rewards'
     | '/_authenticated/app/wallet'
     | '/_authenticated/app/worker'
     | '/_authenticated/app/'
@@ -385,6 +397,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/app/wallet'
       preLoaderRoute: typeof AuthenticatedAppWalletRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/rewards': {
+      id: '/_authenticated/app/rewards'
+      path: '/rewards'
+      fullPath: '/app/rewards'
+      preLoaderRoute: typeof AuthenticatedAppRewardsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/profile': {
@@ -510,6 +529,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
   AuthenticatedAppPlanRoute: typeof AuthenticatedAppPlanRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
+  AuthenticatedAppRewardsRoute: typeof AuthenticatedAppRewardsRoute
   AuthenticatedAppWalletRoute: typeof AuthenticatedAppWalletRoute
   AuthenticatedAppWorkerRoute: typeof AuthenticatedAppWorkerRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -523,6 +543,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
   AuthenticatedAppPlanRoute: AuthenticatedAppPlanRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
+  AuthenticatedAppRewardsRoute: AuthenticatedAppRewardsRoute,
   AuthenticatedAppWalletRoute: AuthenticatedAppWalletRoute,
   AuthenticatedAppWorkerRoute: AuthenticatedAppWorkerRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
