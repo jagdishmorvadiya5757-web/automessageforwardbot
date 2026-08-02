@@ -16,6 +16,9 @@ import {
   CreditCard,
   Shield,
   UserCog,
+  Gift,
+  Wallet,
+
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TrialBanner } from "@/components/TrialBanner";
