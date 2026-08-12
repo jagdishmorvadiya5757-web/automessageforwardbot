@@ -1,4 +1,4 @@
-'ve# ForwardFlow — self-hosted Supabase-compatible API stack
+# ForwardFlow — self-hosted Supabase-compatible API stack
 # Runs on your Oracle VM, on top of the Postgres you already installed.
 #
 #   nginx (:8000)  ->  /auth/v1/*  ->  GoTrue   (authentication)
