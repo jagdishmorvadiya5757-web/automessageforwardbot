@@ -1,0 +1,22 @@
+# Adds automatic HTTPS in front of the :8000 gateway.
+#
+#   export GATEWAY_DOMAIN=forwardflow.duckdns.org
+#   sudo -E docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [gateway]
+    environment:
+      GATEWAY_DOMAIN: ${GATEWAY_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
