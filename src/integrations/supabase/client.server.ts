@@ -30,8 +30,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Self-hosted backend (Oracle VM) takes precedence when configured.
+  const SUPABASE_URL = process.env.ORACLE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.ORACLE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [
