@@ -34,6 +34,7 @@ import { Route as ApiPublicWorkerLoginStateRouteImport } from './routes/api/publ
 import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
 import { Route as ApiPublicWorkerForwardSlotsRouteImport } from './routes/api/public/worker/forward-slots'
 import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
+import { Route as ApiPublicOracleAuthSplatRouteImport } from './routes/api/public/oracle-auth.$'
 
 const ClaimRoute = ClaimRouteImport.update({
   id: '/claim',
@@ -164,6 +165,12 @@ const ApiPublicWorkerChannelsRoute = ApiPublicWorkerChannelsRouteImport.update({
   path: '/api/public/worker/channels',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOracleAuthSplatRoute =
+  ApiPublicOracleAuthSplatRouteImport.update({
+    id: '/api/public/oracle-auth/$',
+    path: '/api/public/oracle-auth/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/app/wallet': typeof AuthenticatedAppWalletRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/oracle-auth/$': typeof ApiPublicOracleAuthSplatRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
@@ -206,6 +214,7 @@ export interface FileRoutesByTo {
   '/app/wallet': typeof AuthenticatedAppWalletRoute
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/api/public/oracle-auth/$': typeof ApiPublicOracleAuthSplatRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
@@ -234,6 +243,7 @@ export interface FileRoutesById {
   '/_authenticated/app/wallet': typeof AuthenticatedAppWalletRoute
   '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/api/public/oracle-auth/$': typeof ApiPublicOracleAuthSplatRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
   '/api/public/worker/heartbeat': typeof ApiPublicWorkerHeartbeatRoute
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/app/wallet'
     | '/app/worker'
     | '/app/'
+    | '/api/public/oracle-auth/$'
     | '/api/public/worker/channels'
     | '/api/public/worker/forward-slots'
     | '/api/public/worker/heartbeat'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/app/wallet'
     | '/app/worker'
     | '/app'
+    | '/api/public/oracle-auth/$'
     | '/api/public/worker/channels'
     | '/api/public/worker/forward-slots'
     | '/api/public/worker/heartbeat'
@@ -314,6 +326,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/wallet'
     | '/_authenticated/app/worker'
     | '/_authenticated/app/'
+    | '/api/public/oracle-auth/$'
     | '/api/public/worker/channels'
     | '/api/public/worker/forward-slots'
     | '/api/public/worker/heartbeat'
@@ -330,6 +343,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ClaimRoute: typeof ClaimRoute
+  ApiPublicOracleAuthSplatRoute: typeof ApiPublicOracleAuthSplatRoute
   ApiPublicWorkerChannelsRoute: typeof ApiPublicWorkerChannelsRoute
   ApiPublicWorkerForwardSlotsRoute: typeof ApiPublicWorkerForwardSlotsRoute
   ApiPublicWorkerHeartbeatRoute: typeof ApiPublicWorkerHeartbeatRoute
@@ -518,6 +532,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkerChannelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/oracle-auth/$': {
+      id: '/api/public/oracle-auth/$'
+      path: '/api/public/oracle-auth/$'
+      fullPath: '/api/public/oracle-auth/$'
+      preLoaderRoute: typeof ApiPublicOracleAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -568,6 +589,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ClaimRoute: ClaimRoute,
+  ApiPublicOracleAuthSplatRoute: ApiPublicOracleAuthSplatRoute,
   ApiPublicWorkerChannelsRoute: ApiPublicWorkerChannelsRoute,
   ApiPublicWorkerForwardSlotsRoute: ApiPublicWorkerForwardSlotsRoute,
   ApiPublicWorkerHeartbeatRoute: ApiPublicWorkerHeartbeatRoute,

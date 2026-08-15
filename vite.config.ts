@@ -6,6 +6,22 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+const oracleCorsCompatibilityPlugin = {
+  name: "oracle-cors-compatibility",
+  enforce: "pre" as const,
+  transform(code: string, id: string) {
+    if (!id.replaceAll("\\", "/").endsWith("/src/integrations/supabase/client.ts")) return null;
+
+    const fetchCall = "headers.set('apikey', supabaseKey);\n    return fetch(input, { ...init, headers });";
+    if (!code.includes(fetchCall)) return null;
+
+    return code.replace(
+      fetchCall,
+      "headers.set('apikey', supabaseKey);\n    // Keep browser auth same-origin so duplicate upstream CORS headers cannot block it.\n    headers.delete('x-supabase-api-version');\n    const oracleAuth = 'https://automessagebot.duckdns.org/auth/v1';\n    const requestInput = typeof window !== 'undefined' && typeof input === 'string' && input.startsWith(oracleAuth)\n      ? `${window.location.origin}/api/public/oracle-auth${input.slice(oracleAuth.length)}`\n      : input;\n    return fetch(requestInput, { ...init, headers });",
+    );
+  },
+};
+
 // Self-hosted backend (Oracle VM) — overrides the managed Cloud values in .env.
 const ORACLE_SUPABASE_URL = "https://automessagebot.duckdns.org";
 const ORACLE_SUPABASE_ANON_KEY =
@@ -18,6 +34,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    plugins: [oracleCorsCompatibilityPlugin],
     define: {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(ORACLE_SUPABASE_URL),
       "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(ORACLE_SUPABASE_ANON_KEY),
