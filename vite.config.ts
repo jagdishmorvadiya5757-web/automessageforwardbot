@@ -23,7 +23,7 @@ const oracleCorsCompatibilityPlugin = {
 };
 
 // Self-hosted backend (Oracle VM) — overrides the managed Cloud values in .env.
-const ORACLE_SUPABASE_URL = "/api/public/oracle";
+const ORACLE_SUPABASE_URL = "http://localhost/api/public/oracle";
 const ORACLE_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg2Njc3MDI5LCJleHAiOjIxMDIwMzcwMjl9.opLVy21IydwNWp6-VnfFZUuybiwKEJYk_cIp7V2qXKI";
 
