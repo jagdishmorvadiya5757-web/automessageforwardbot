@@ -17,13 +17,13 @@ const oracleCorsCompatibilityPlugin = {
 
     return code.replace(
       fetchCall,
-      "headers.set('apikey', supabaseKey);\n    // The self-hosted Oracle gateway does not accept this newer optional header.\n    headers.delete('x-supabase-api-version');\n    return fetch(input, { ...init, headers });",
+      "headers.set('apikey', supabaseKey);\n    // Keep browser auth same-origin so duplicate upstream CORS headers cannot block it.\n    headers.delete('x-supabase-api-version');\n    const oracleAuth = 'https://automessagebot.duckdns.org/auth/v1';\n    const requestInput = typeof window !== 'undefined' && typeof input === 'string' && input.startsWith(oracleAuth)\n      ? `${window.location.origin}/api/public/oracle-auth${input.slice(oracleAuth.length)}`\n      : input;\n    return fetch(requestInput, { ...init, headers });",
     );
   },
 };
 
 // Self-hosted backend (Oracle VM) — overrides the managed Cloud values in .env.
-const ORACLE_SUPABASE_URL = "http://localhost/api/public/oracle";
+const ORACLE_SUPABASE_URL = "https://automessagebot.duckdns.org";
 const ORACLE_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg2Njc3MDI5LCJleHAiOjIxMDIwMzcwMjl9.opLVy21IydwNWp6-VnfFZUuybiwKEJYk_cIp7V2qXKI";
 
