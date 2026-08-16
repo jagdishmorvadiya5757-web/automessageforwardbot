@@ -109,3 +109,18 @@ Main phir app ke Supabase URL/keys switch kar dunga aur worker (`worker/main.py`
 
 Purane hosted backend ke users automatically nahi aate — password hashes export nahi hote.
 Do options: (a) users dobara signup karein, ya (b) admin ke taur par main ek "reset password on first login" flow bana du.
+
+## Auth signup/login repair
+
+If signup returns `Database error finding user` or login returns
+`Database error querying schema`, the old bootstrap stub is still installed.
+From the repository root, run this single command:
+
+```bash
+git pull
+sudo bash deploy/oracle-supabase/repair-auth.sh
+```
+
+Do not run `05_relink_auth.sql` separately or before the script. The repair
+copies SQL to `/tmp`, so the `postgres` OS user is not blocked by repository
+directory permissions. A successful run ends with `AUTH REPAIR COMPLETE`.
