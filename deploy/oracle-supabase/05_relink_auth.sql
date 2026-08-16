@@ -28,7 +28,10 @@ BEGIN
     IF NOT EXISTS (
       SELECT 1 FROM pg_constraint WHERE conname = r.constraint_name
     ) THEN
-      EXECUTE format('ALTER TABLE %I.%I ADD CONSTRAINT %I %s',
+      -- Old public rows may belong to users from the previous hosted auth
+      -- system. NOT VALID preserves those rows while enforcing the FK for all
+      -- new Oracle-auth users and writes.
+      EXECUTE format('ALTER TABLE %I.%I ADD CONSTRAINT %I %s NOT VALID',
                      r.table_schema, r.table_name, r.constraint_name, r.definition);
     END IF;
   END LOOP;
