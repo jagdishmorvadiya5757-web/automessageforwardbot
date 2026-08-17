@@ -15,12 +15,20 @@ async function proxyAuth(request: Request) {
   headers.delete("referer");
   headers.delete("x-supabase-api-version");
 
-  const upstream = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
-    redirect: "manual",
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
+      redirect: "manual",
+    });
+  } catch {
+    return Response.json(
+      { message: "Authentication service is temporarily offline. Please try again shortly." },
+      { status: 503 },
+    );
+  }
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.delete("access-control-allow-origin");
   responseHeaders.delete("access-control-allow-credentials");

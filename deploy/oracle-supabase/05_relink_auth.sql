@@ -21,13 +21,36 @@ BEGIN
 END $$;
 
 -- 1. restore foreign keys ----------------------------------------------------
+-- If an older repair already removed auth.users before the backup was made,
+-- reconstruct every app foreign key from the canonical schema. NOT VALID
+-- preserves imported rows whose old hosted-auth users are not in Oracle yet,
+-- while still enforcing the relationship for every new write.
+INSERT INTO public._auth_fk_backup (table_schema, table_name, constraint_name, definition)
+VALUES
+  ('public', 'profiles', 'profiles_id_fkey', 'FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'user_roles', 'user_roles_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'forwarding_rules', 'forwarding_rules_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'forwarding_logs', 'forwarding_logs_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'worker_tokens', 'worker_tokens_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'subscriptions', 'subscriptions_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'telegram_sessions', 'telegram_sessions_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'wallets', 'wallets_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'credit_transactions', 'credit_transactions_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'daily_checkins', 'daily_checkins_user_id_fkey', 'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'referrals', 'referrals_referrer_id_fkey', 'FOREIGN KEY (referrer_id) REFERENCES auth.users(id) ON DELETE CASCADE'),
+  ('public', 'referrals', 'referrals_referred_id_fkey', 'FOREIGN KEY (referred_id) REFERENCES auth.users(id) ON DELETE CASCADE')
+ON CONFLICT DO NOTHING;
+
 DO $$
 DECLARE r record;
 BEGIN
   FOR r IN SELECT * FROM public._auth_fk_backup LOOP
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_constraint WHERE conname = r.constraint_name
-    ) THEN
+    IF to_regclass(format('%I.%I', r.table_schema, r.table_name)) IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM pg_constraint
+         WHERE conname = r.constraint_name
+           AND conrelid = to_regclass(format('%I.%I', r.table_schema, r.table_name))
+       ) THEN
       -- Old public rows may belong to users from the previous hosted auth
       -- system. NOT VALID preserves those rows while enforcing the FK for all
       -- new Oracle-auth users and writes.
