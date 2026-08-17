@@ -26,13 +26,21 @@ CREATE TABLE public._auth_fk_backup (
   definition   text
 );
 
-INSERT INTO public._auth_fk_backup
-SELECT n.nspname, c.relname, con.conname, pg_get_constraintdef(con.oid)
-FROM pg_constraint con
-JOIN pg_class c   ON c.oid = con.conrelid
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE con.contype = 'f'
-  AND con.confrelid = 'auth.users'::regclass;
+-- A previous interrupted repair may already have removed auth.users. Avoid
+-- resolving the missing regclass in that state; 05_relink_auth.sql contains a
+-- complete fallback list for rebuilding the application foreign keys.
+DO $$
+BEGIN
+  IF to_regclass('auth.users') IS NOT NULL THEN
+    INSERT INTO public._auth_fk_backup
+    SELECT n.nspname, c.relname, con.conname, pg_get_constraintdef(con.oid)
+    FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.contype = 'f'
+      AND con.confrelid = to_regclass('auth.users');
+  END IF;
+END $$;
 
 -- 2. drop them + the signup trigger ----------------------------------------
 DO $$
@@ -44,7 +52,12 @@ BEGIN
   END LOOP;
 END $$;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DO $$
+BEGIN
+  IF to_regclass('auth.users') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+  END IF;
+END $$;
 
 -- 3. wipe the auth schema's tables ------------------------------------------
 DO $$
@@ -56,6 +69,10 @@ BEGIN
 END $$;
 
 -- 4. helper functions GoTrue does not own -----------------------------------
+CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
+ALTER SCHEMA auth OWNER TO supabase_auth_admin;
+GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
+
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
 LANGUAGE sql STABLE AS $$
   SELECT coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
@@ -74,7 +91,4 @@ $$;
 GRANT EXECUTE ON FUNCTION auth.jwt(), auth.uid(), auth.role()
   TO anon, authenticated, service_role;
 
--- GoTrue must fully own its schema
-ALTER SCHEMA auth OWNER TO supabase_auth_admin;
-GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;

@@ -10,6 +10,16 @@ COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 RESET_SQL="/tmp/forwardflow-04-reset-auth.sql"
 RELINK_SQL="/tmp/forwardflow-05-relink-auth.sql"
 DB_NAME="forwardflow"
+repair_complete="false"
+
+recover_auth_on_error() {
+  if [[ "$repair_complete" != "true" ]]; then
+    echo "Repair stopped early; ensuring auth is not left offline..."
+    docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" up -d auth >/dev/null 2>&1 || true
+  fi
+}
+
+trap recover_auth_on_error EXIT
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run with sudo: sudo bash deploy/oracle-supabase/repair-auth.sh"
@@ -97,3 +107,4 @@ docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" ps auth
 echo "$health"
 echo "signup self-test: HTTP $signup_status"
 echo "AUTH REPAIR COMPLETE"
+repair_complete="true"
