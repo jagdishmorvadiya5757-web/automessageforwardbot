@@ -83,7 +83,7 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$RECONCILE_SQL"
 echo "[5/6] Restoring app links and the signup trigger..."
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$RELINK_SQL"
 
-echo "[6/6] Verifying auth schema and API..."
+echo "[6/6] Verifying auth schema, eager relations, and API..."
 column_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM information_schema.columns WHERE table_schema='auth' AND table_name='users')")"
 missing_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
@@ -108,18 +108,69 @@ if [[ "$users_owner" != "supabase_auth_admin" ]]; then
   exit 1
 fi
 
+missing_relation_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT string_agg(required.table_name || '.' || required.column_name, ', ' ORDER BY required.table_name, required.column_name) FROM (VALUES ('identities', 'id'), ('identities', 'provider_id'), ('identities', 'user_id'), ('identities', 'identity_data'), ('identities', 'provider'), ('identities', 'email'), ('mfa_factors', 'id'), ('mfa_factors', 'user_id'), ('mfa_factors', 'factor_type'), ('mfa_factors', 'status'), ('mfa_factors', 'phone'), ('mfa_factors', 'last_challenged_at')) AS required(table_name, column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name=required.table_name AND actual.column_name=required.column_name)")"
+if [[ -n "$missing_relation_columns" ]]; then
+  echo "ERROR: eager-loaded auth relations are incomplete; missing: $missing_relation_columns"
+  exit 1
+fi
+
+confirmed_at_generated="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT is_generated FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='confirmed_at'")"
+if [[ "$confirmed_at_generated" != "ALWAYS" ]]; then
+  echo "ERROR: auth.users.confirmed_at is not a generated column"
+  exit 1
+fi
+
+# Reproduce the shape of GoTrue's FindUserByEmailAndAudience eager lookup as
+# the same database role used by the auth container. This catches permissions,
+# search_path, relation, and column drift before the HTTP self-test.
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" <<'SQL'
+SET ROLE supabase_auth_admin;
+SET search_path = auth, public;
+SELECT id, instance_id, aud, role, email, encrypted_password,
+       email_confirmed_at, invited_at, phone, phone_confirmed_at,
+       confirmation_token, confirmation_sent_at, confirmed_at,
+       recovery_token, recovery_sent_at, email_change_token_current,
+       email_change_token_new, email_change, email_change_sent_at,
+       email_change_confirm_status, phone_change_token, phone_change,
+       phone_change_sent_at, reauthentication_token,
+       reauthentication_sent_at, last_sign_in_at, raw_app_meta_data,
+       raw_user_meta_data, is_super_admin, created_at, updated_at,
+       banned_until, deleted_at, is_sso_user, is_anonymous
+FROM users
+WHERE instance_id = '00000000-0000-0000-0000-000000000000'
+  AND lower(email) = 'forwardflow-schema-check@example.com'
+  AND aud = 'authenticated' AND is_sso_user = false;
+SELECT id, provider_id, user_id, identity_data, provider, last_sign_in_at,
+       created_at, updated_at, email
+FROM identities WHERE false;
+SELECT id, user_id, created_at, updated_at, status, friendly_name, secret,
+       factor_type, phone, last_challenged_at
+FROM mfa_factors WHERE false;
+RESET ROLE;
+SQL
+
 # Verify that the exact operation which previously returned HTTP 500 now
 # succeeds. The temporary account is removed immediately afterwards.
 health="$(curl --fail --silent --show-error http://127.0.0.1:8000/auth/v1/health)"
 test_email="forwardflow-auth-check-$(date +%s)@example.com"
 signup_body="$(printf '{"email":"%s","password":"RepairCheck!9284"}' "$test_email")"
-signup_response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
-  -H "apikey: $(grep '^ANON_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
-  -H 'Content-Type: application/json' \
-  --data "$signup_body" \
-  http://127.0.0.1:8000/auth/v1/signup)"
-signup_status="${signup_response##*$'\n'}"
-signup_json="${signup_response%$'\n'*}"
+signup_status="000"
+signup_json=""
+for attempt in $(seq 1 5); do
+  signup_response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
+    -H "apikey: $(grep '^ANON_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
+    -H 'Content-Type: application/json' \
+    --data "$signup_body" \
+    http://127.0.0.1:8000/auth/v1/signup || printf '\n000')"
+  signup_status="${signup_response##*$'\n'}"
+  signup_json="${signup_response%$'\n'*}"
+  if [[ "$signup_status" -ge 200 && "$signup_status" -lt 300 ]]; then
+    break
+  fi
+  if [[ "$attempt" -lt 5 ]]; then sleep 2; fi
+done
 if [[ "$signup_status" -ge 500 || "$signup_status" -lt 200 || "$signup_status" -ge 300 ]]; then
   echo "ERROR: signup self-test returned HTTP $signup_status: $signup_json"
   echo "Latest auth logs:"
