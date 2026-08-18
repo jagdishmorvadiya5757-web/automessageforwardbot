@@ -35,28 +35,38 @@ function AuthPage() {
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Welcome back!");
-    navigate({ to: "/app" });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return toast.error(error.message);
+      toast.success("Welcome back!");
+      navigate({ to: "/app" });
+    } catch {
+      toast.error("Authentication service is unavailable. Please try again shortly.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: displayName || email.split("@")[0] },
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created!");
-    navigate({ to: "/app" });
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { display_name: displayName || email.split("@")[0] },
+        },
+      });
+      if (error) return toast.error(error.message);
+      toast.success("Account created!");
+      navigate({ to: "/app" });
+    } catch {
+      toast.error("Authentication service is unavailable. Please try again shortly.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
