@@ -32,6 +32,11 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
   exit 1
 fi
 
+if ! grep -q '^ANON_KEY=.' "$SCRIPT_DIR/.env"; then
+  echo "ERROR: ANON_KEY is missing from $SCRIPT_DIR/.env"
+  exit 1
+fi
+
 install -m 0644 "$SCRIPT_DIR/04_reset_auth.sql" "$RESET_SQL"
 install -m 0644 "$SCRIPT_DIR/05_relink_auth.sql" "$RELINK_SQL"
 install -m 0644 "$SCRIPT_DIR/06_reconcile_auth_schema.sql" "$RECONCILE_SQL"
