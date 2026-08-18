@@ -58,7 +58,29 @@ BEGIN
     ON auth.users USING btree (instance_id, lower(email));
   CREATE UNIQUE INDEX IF NOT EXISTS users_email_partial_key
     ON auth.users (email) WHERE is_sso_user = false;
+  CREATE UNIQUE INDEX IF NOT EXISTS confirmation_token_idx
+    ON auth.users (confirmation_token) WHERE confirmation_token !~ '^[0-9 ]*$';
+  CREATE UNIQUE INDEX IF NOT EXISTS recovery_token_idx
+    ON auth.users (recovery_token) WHERE recovery_token !~ '^[0-9 ]*$';
+  CREATE UNIQUE INDEX IF NOT EXISTS email_change_token_current_idx
+    ON auth.users (email_change_token_current) WHERE email_change_token_current !~ '^[0-9 ]*$';
+  CREATE UNIQUE INDEX IF NOT EXISTS email_change_token_new_idx
+    ON auth.users (email_change_token_new) WHERE email_change_token_new !~ '^[0-9 ]*$';
+  CREATE UNIQUE INDEX IF NOT EXISTS reauthentication_token_idx
+    ON auth.users (reauthentication_token) WHERE reauthentication_token !~ '^[0-9 ]*$';
 
   ALTER TABLE auth.users OWNER TO supabase_auth_admin;
   GRANT ALL ON auth.users TO supabase_auth_admin;
+END $$;
+
+-- A complete users table alone is not enough: signup also creates an identity
+-- and audit record. Normalize ownership for all tables created by GoTrue.
+DO $$
+DECLARE auth_table record;
+BEGIN
+  FOR auth_table IN
+    SELECT tablename FROM pg_tables WHERE schemaname = 'auth'
+  LOOP
+    EXECUTE format('ALTER TABLE auth.%I OWNER TO supabase_auth_admin', auth_table.tablename);
+  END LOOP;
 END $$;

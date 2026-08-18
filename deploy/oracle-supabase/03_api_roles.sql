@@ -43,6 +43,7 @@ END $$;
 
 GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
 ALTER SCHEMA auth OWNER TO supabase_auth_admin;
+ALTER ROLE supabase_auth_admin SET search_path = auth, public;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 
 -- auth.uid() / auth.role() / auth.jwt() as PostgREST exposes them

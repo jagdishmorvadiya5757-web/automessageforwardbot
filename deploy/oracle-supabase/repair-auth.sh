@@ -63,7 +63,7 @@ echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
 for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token')" \
+    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token')" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -91,6 +91,20 @@ missing_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
 if [[ -n "$missing_columns" ]]; then
   echo "ERROR: auth.users is incomplete; missing: $missing_columns"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
+  exit 1
+fi
+
+missing_tables="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT string_agg(required.table_name, ', ' ORDER BY required.table_name) FROM (VALUES ('users'), ('identities'), ('sessions'), ('audit_log_entries'), ('schema_migrations'), ('one_time_tokens')) AS required(table_name) WHERE to_regclass('auth.' || required.table_name) IS NULL")"
+users_owner="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid = 'auth.users'::regclass")"
+if [[ -n "$missing_tables" ]]; then
+  echo "ERROR: auth schema is incomplete; missing tables: $missing_tables"
+  docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
+  exit 1
+fi
+if [[ "$users_owner" != "supabase_auth_admin" ]]; then
+  echo "ERROR: auth.users owner is $users_owner, expected supabase_auth_admin"
   exit 1
 fi
 
