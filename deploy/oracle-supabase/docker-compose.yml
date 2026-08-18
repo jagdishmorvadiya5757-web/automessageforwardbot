@@ -15,6 +15,10 @@ services:
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: ${GOTRUE_DB_URL}
+      # Keep GoTrue's migration history and tables inside auth. Without this,
+      # a stale public.schema_migrations can make GoTrue skip newer columns
+      # (for example users.is_anonymous) while still reporting startup success.
+      GOTRUE_DB_NAMESPACE: auth
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
       GOTRUE_DISABLE_SIGNUP: "false"
