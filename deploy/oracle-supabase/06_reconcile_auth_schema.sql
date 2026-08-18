@@ -84,26 +84,24 @@ BEGIN
     RAISE EXCEPTION 'auth.identities does not exist; GoTrue migrations have not completed';
   END IF;
 
-  ALTER TABLE auth.identities
-    ADD COLUMN IF NOT EXISTS provider_id text,
-    ADD COLUMN IF NOT EXISTS email text GENERATED ALWAYS AS (lower(identity_data ->> 'email')) STORED;
-
   -- Old installs used the provider identifier as `id`. The current model needs
   -- a UUID primary key named id and stores the provider identifier separately.
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'auth' AND table_name = 'identities'
       AND column_name = 'id' AND data_type = 'text'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'auth' AND table_name = 'identities'
+      AND column_name = 'provider_id'
   ) THEN
-    ALTER TABLE auth.identities RENAME COLUMN id TO legacy_provider_id;
-    UPDATE auth.identities
-      SET provider_id = COALESCE(provider_id, legacy_provider_id)
-      WHERE provider_id IS NULL;
-    ALTER TABLE auth.identities DROP COLUMN legacy_provider_id;
+    ALTER TABLE auth.identities RENAME COLUMN id TO provider_id;
   END IF;
 
   ALTER TABLE auth.identities
-    ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+    ADD COLUMN IF NOT EXISTS provider_id text,
+    ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid(),
+    ADD COLUMN IF NOT EXISTS email text GENERATED ALWAYS AS (lower(identity_data ->> 'email')) STORED;
   UPDATE auth.identities SET id = gen_random_uuid() WHERE id IS NULL;
   ALTER TABLE auth.identities ALTER COLUMN id SET DEFAULT gen_random_uuid();
   ALTER TABLE auth.identities ALTER COLUMN id SET NOT NULL;
