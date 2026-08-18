@@ -73,8 +73,59 @@ BEGIN
   GRANT ALL ON auth.users TO supabase_auth_admin;
 END $$;
 
--- A complete users table alone is not enough: signup also creates an identity
--- and audit record. Normalize ownership for all tables created by GoTrue.
+-- FindUserByEmailAndAudience uses Pop's Eager() loader. That means a lookup on
+-- auth.users also reads identities and mfa_factors before signup inserts
+-- anything. A partially migrated related table therefore surfaces as the
+-- misleading "Database error finding user" response even when users itself is
+-- complete. Reconcile the v2.158.1 model fields used by those eager relations.
+DO $$
+BEGIN
+  IF to_regclass('auth.identities') IS NULL THEN
+    RAISE EXCEPTION 'auth.identities does not exist; GoTrue migrations have not completed';
+  END IF;
+
+  ALTER TABLE auth.identities
+    ADD COLUMN IF NOT EXISTS provider_id text,
+    ADD COLUMN IF NOT EXISTS email text GENERATED ALWAYS AS (lower(identity_data ->> 'email')) STORED;
+
+  -- Old installs used the provider identifier as `id`. The current model needs
+  -- a UUID primary key named id and stores the provider identifier separately.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'auth' AND table_name = 'identities'
+      AND column_name = 'id' AND data_type = 'text'
+  ) THEN
+    ALTER TABLE auth.identities RENAME COLUMN id TO legacy_provider_id;
+    UPDATE auth.identities
+      SET provider_id = COALESCE(provider_id, legacy_provider_id)
+      WHERE provider_id IS NULL;
+    ALTER TABLE auth.identities DROP COLUMN legacy_provider_id;
+  END IF;
+
+  ALTER TABLE auth.identities
+    ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+  UPDATE auth.identities SET id = gen_random_uuid() WHERE id IS NULL;
+  ALTER TABLE auth.identities ALTER COLUMN id SET DEFAULT gen_random_uuid();
+  ALTER TABLE auth.identities ALTER COLUMN id SET NOT NULL;
+
+  IF to_regclass('auth.mfa_factors') IS NULL THEN
+    RAISE EXCEPTION 'auth.mfa_factors does not exist; GoTrue migrations have not completed';
+  END IF;
+
+  ALTER TABLE auth.mfa_factors
+    ADD COLUMN IF NOT EXISTS phone text,
+    ADD COLUMN IF NOT EXISTS last_challenged_at timestamptz;
+
+  CREATE INDEX IF NOT EXISTS identities_user_id_idx
+    ON auth.identities USING btree (user_id);
+  CREATE INDEX IF NOT EXISTS identities_email_idx
+    ON auth.identities (email text_pattern_ops);
+  CREATE INDEX IF NOT EXISTS mfa_factors_user_id_idx
+    ON auth.mfa_factors USING btree (user_id);
+END $$;
+
+-- A complete users table alone is not enough: signup also creates an identity,
+-- factor relation, and audit record. Normalize ownership for all GoTrue tables.
 DO $$
 DECLARE auth_table record;
 BEGIN
