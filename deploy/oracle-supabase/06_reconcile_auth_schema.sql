@@ -124,6 +124,12 @@ BEGIN
   ALTER TABLE auth.identities
     ADD COLUMN IF NOT EXISTS provider_id text,
     ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid(),
+    ADD COLUMN IF NOT EXISTS user_id uuid,
+    ADD COLUMN IF NOT EXISTS identity_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS provider text,
+    ADD COLUMN IF NOT EXISTS last_sign_in_at timestamptz,
+    ADD COLUMN IF NOT EXISTS created_at timestamptz,
+    ADD COLUMN IF NOT EXISTS updated_at timestamptz,
     ADD COLUMN IF NOT EXISTS email text GENERATED ALWAYS AS (lower(identity_data ->> 'email')) STORED;
   UPDATE auth.identities SET id = gen_random_uuid() WHERE id IS NULL;
   ALTER TABLE auth.identities ALTER COLUMN id SET DEFAULT gen_random_uuid();
@@ -142,13 +148,40 @@ BEGIN
       ADD CONSTRAINT identities_provider_id_provider_unique UNIQUE (provider_id, provider);
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'auth.identities'::regclass
+      AND conname = 'identities_user_id_fkey'
+  ) THEN
+    ALTER TABLE auth.identities
+      ADD CONSTRAINT identities_user_id_fkey FOREIGN KEY (user_id)
+      REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
+  END IF;
+
   IF to_regclass('auth.mfa_factors') IS NULL THEN
     RAISE EXCEPTION 'auth.mfa_factors does not exist; GoTrue migrations have not completed';
   END IF;
 
   ALTER TABLE auth.mfa_factors
+    ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid(),
+    ADD COLUMN IF NOT EXISTS user_id uuid,
+    ADD COLUMN IF NOT EXISTS friendly_name text,
+    ADD COLUMN IF NOT EXISTS status auth.factor_status,
+    ADD COLUMN IF NOT EXISTS secret text,
+    ADD COLUMN IF NOT EXISTS created_at timestamptz,
+    ADD COLUMN IF NOT EXISTS updated_at timestamptz,
     ADD COLUMN IF NOT EXISTS phone text,
     ADD COLUMN IF NOT EXISTS last_challenged_at timestamptz;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'auth.mfa_factors'::regclass
+      AND conname = 'mfa_factors_user_id_fkey'
+  ) THEN
+    ALTER TABLE auth.mfa_factors
+      ADD CONSTRAINT mfa_factors_user_id_fkey FOREIGN KEY (user_id)
+      REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
+  END IF;
 
   CREATE INDEX IF NOT EXISTS identities_user_id_idx
     ON auth.identities USING btree (user_id);
@@ -156,6 +189,10 @@ BEGIN
     ON auth.identities (email text_pattern_ops);
   CREATE INDEX IF NOT EXISTS mfa_factors_user_id_idx
     ON auth.mfa_factors USING btree (user_id);
+
+  ALTER TABLE auth.identities OWNER TO supabase_auth_admin;
+  ALTER TABLE auth.mfa_factors OWNER TO supabase_auth_admin;
+  GRANT ALL ON auth.identities, auth.mfa_factors TO supabase_auth_admin;
 END $$;
 
 -- A complete users table alone is not enough: signup also creates an identity,

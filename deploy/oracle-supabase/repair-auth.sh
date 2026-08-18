@@ -109,7 +109,7 @@ if [[ "$users_owner" != "supabase_auth_admin" ]]; then
 fi
 
 missing_relation_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
-  "SELECT string_agg(required.table_name || '.' || required.column_name, ', ' ORDER BY required.table_name, required.column_name) FROM (VALUES ('identities', 'id'), ('identities', 'provider_id'), ('identities', 'user_id'), ('identities', 'identity_data'), ('identities', 'provider'), ('identities', 'email'), ('mfa_factors', 'id'), ('mfa_factors', 'user_id'), ('mfa_factors', 'factor_type'), ('mfa_factors', 'status'), ('mfa_factors', 'phone'), ('mfa_factors', 'last_challenged_at')) AS required(table_name, column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name=required.table_name AND actual.column_name=required.column_name)")"
+  "SELECT string_agg(required.table_name || '.' || required.column_name, ', ' ORDER BY required.table_name, required.column_name) FROM (VALUES ('identities', 'id'), ('identities', 'provider_id'), ('identities', 'user_id'), ('identities', 'identity_data'), ('identities', 'provider'), ('identities', 'last_sign_in_at'), ('identities', 'created_at'), ('identities', 'updated_at'), ('identities', 'email'), ('mfa_factors', 'id'), ('mfa_factors', 'user_id'), ('mfa_factors', 'friendly_name'), ('mfa_factors', 'factor_type'), ('mfa_factors', 'status'), ('mfa_factors', 'secret'), ('mfa_factors', 'created_at'), ('mfa_factors', 'updated_at'), ('mfa_factors', 'phone'), ('mfa_factors', 'last_challenged_at')) AS required(table_name, column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name=required.table_name AND actual.column_name=required.column_name)")"
 if [[ -n "$missing_relation_columns" ]]; then
   echo "ERROR: eager-loaded auth relations are incomplete; missing: $missing_relation_columns"
   exit 1
@@ -119,6 +119,14 @@ confirmed_at_generated="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT is_generated FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='confirmed_at'")"
 if [[ "$confirmed_at_generated" != "ALWAYS" ]]; then
   echo "ERROR: auth.users.confirmed_at is not a generated column"
+  exit 1
+fi
+
+auth_migration_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT count(*) FROM auth.schema_migrations")"
+if [[ "$auth_migration_count" -lt 40 ]]; then
+  echo "ERROR: only $auth_migration_count auth migrations were recorded; expected a complete GoTrue schema"
+  docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
   exit 1
 fi
 

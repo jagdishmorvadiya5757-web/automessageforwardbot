@@ -23,7 +23,12 @@ async function proxyAuth(request: Request) {
       body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
       redirect: "manual",
     });
-  } catch {
+  } catch (error) {
+    console.error("Oracle authentication upstream is unreachable", {
+      method: request.method,
+      path: suffix,
+      error: error instanceof Error ? error.message : "Unknown network error",
+    });
     return Response.json(
       { message: "Authentication service is temporarily offline. Please try again shortly." },
       { status: 503 },
@@ -34,6 +39,14 @@ async function proxyAuth(request: Request) {
   responseHeaders.delete("access-control-allow-credentials");
   responseHeaders.delete("access-control-allow-headers");
   responseHeaders.delete("access-control-allow-methods");
+
+  if (upstream.status >= 500) {
+    console.error("Oracle authentication upstream failed", {
+      method: request.method,
+      path: suffix,
+      status: upstream.status,
+    });
+  }
 
   return new Response(upstream.body, {
     status: upstream.status,
