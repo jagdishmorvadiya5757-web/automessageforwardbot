@@ -45,10 +45,18 @@ BEGIN
     ADD COLUMN IF NOT EXISTS is_sso_user boolean NOT NULL DEFAULT false,
     ADD COLUMN IF NOT EXISTS is_anonymous boolean NOT NULL DEFAULT false;
 
-  -- `confirmed_at` is a compatibility field. A plain nullable column is used
-  -- only as a recovery fallback; clean GoTrue migrations create it generated.
+  -- GoTrue defines confirmed_at as a stored generated compatibility field.
+  -- Replace the plain fallback created by an earlier repair, if present.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'auth' AND table_name = 'users'
+      AND column_name = 'confirmed_at' AND is_generated = 'NEVER'
+  ) THEN
+    ALTER TABLE auth.users DROP COLUMN confirmed_at;
+  END IF;
   ALTER TABLE auth.users
-    ADD COLUMN IF NOT EXISTS confirmed_at timestamptz;
+    ADD COLUMN IF NOT EXISTS confirmed_at timestamptz
+      GENERATED ALWAYS AS (LEAST(email_confirmed_at, phone_confirmed_at)) STORED;
 
   CREATE INDEX IF NOT EXISTS users_is_anonymous_idx
     ON auth.users USING btree (is_anonymous);
@@ -68,6 +76,21 @@ BEGIN
     ON auth.users (email_change_token_new) WHERE email_change_token_new !~ '^[0-9 ]*$';
   CREATE UNIQUE INDEX IF NOT EXISTS reauthentication_token_idx
     ON auth.users (reauthentication_token) WHERE reauthentication_token !~ '^[0-9 ]*$';
+  CREATE UNIQUE INDEX IF NOT EXISTS phone_change_token_idx
+    ON auth.users (phone_change_token) WHERE phone_change_token !~ '^[0-9 ]*$';
+  CREATE UNIQUE INDEX IF NOT EXISTS users_phone_key
+    ON auth.users (phone);
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'auth.users'::regclass
+      AND conname = 'users_email_change_confirm_status_check'
+  ) THEN
+    ALTER TABLE auth.users
+      ADD CONSTRAINT users_email_change_confirm_status_check
+      CHECK (email_change_confirm_status >= 0 AND email_change_confirm_status <= 2)
+      NOT VALID;
+  END IF;
 
   ALTER TABLE auth.users OWNER TO supabase_auth_admin;
   GRANT ALL ON auth.users TO supabase_auth_admin;

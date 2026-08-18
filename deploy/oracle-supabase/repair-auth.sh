@@ -115,6 +115,13 @@ if [[ -n "$missing_relation_columns" ]]; then
   exit 1
 fi
 
+confirmed_at_generated="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT is_generated FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='confirmed_at'")"
+if [[ "$confirmed_at_generated" != "ALWAYS" ]]; then
+  echo "ERROR: auth.users.confirmed_at is not a generated column"
+  exit 1
+fi
+
 # Reproduce the shape of GoTrue's FindUserByEmailAndAudience eager lookup as
 # the same database role used by the auth container. This catches permissions,
 # search_path, relation, and column drift before the HTTP self-test.
@@ -149,13 +156,21 @@ SQL
 health="$(curl --fail --silent --show-error http://127.0.0.1:8000/auth/v1/health)"
 test_email="forwardflow-auth-check-$(date +%s)@example.com"
 signup_body="$(printf '{"email":"%s","password":"RepairCheck!9284"}' "$test_email")"
-signup_response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
-  -H "apikey: $(grep '^ANON_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
-  -H 'Content-Type: application/json' \
-  --data "$signup_body" \
-  http://127.0.0.1:8000/auth/v1/signup)"
-signup_status="${signup_response##*$'\n'}"
-signup_json="${signup_response%$'\n'*}"
+signup_status="000"
+signup_json=""
+for attempt in $(seq 1 5); do
+  signup_response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
+    -H "apikey: $(grep '^ANON_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
+    -H 'Content-Type: application/json' \
+    --data "$signup_body" \
+    http://127.0.0.1:8000/auth/v1/signup || printf '\n000')"
+  signup_status="${signup_response##*$'\n'}"
+  signup_json="${signup_response%$'\n'*}"
+  if [[ "$signup_status" -ge 200 && "$signup_status" -lt 300 ]]; then
+    break
+  fi
+  if [[ "$attempt" -lt 5 ]]; then sleep 2; fi
+done
 if [[ "$signup_status" -ge 500 || "$signup_status" -lt 200 || "$signup_status" -ge 300 ]]; then
   echo "ERROR: signup self-test returned HTTP $signup_status: $signup_json"
   echo "Latest auth logs:"
