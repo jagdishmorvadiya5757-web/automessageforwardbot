@@ -52,11 +52,11 @@ SQL
 echo "[3/6] Starting auth and allowing it to create its real schema..."
 docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" up -d --force-recreate auth
 
-echo "[4/6] Waiting for the real auth.users table (up to 90 seconds)..."
+echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
-for _ in $(seq 1 45); do
+for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='encrypted_password')" \
+    "SELECT NOT EXISTS (SELECT required.column_name FROM (VALUES ('encrypted_password'), ('is_anonymous'), ('deleted_at'), ('email_change_token_new'), ('reauthentication_token')) AS required(column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name='users' AND actual.column_name=required.column_name))" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -65,7 +65,7 @@ for _ in $(seq 1 45); do
 done
 
 if [[ "$ready" != "true" ]]; then
-  echo "ERROR: auth.users was not created. Latest auth logs:"
+  echo "ERROR: GoTrue migrations did not create the complete auth.users schema. Latest auth logs:"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=100 auth
   exit 1
 fi
@@ -76,8 +76,10 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$RELINK_SQL"
 echo "[6/6] Verifying auth schema and API..."
 column_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM information_schema.columns WHERE table_schema='auth' AND table_name='users')")"
-if [[ "$column_count" -lt 20 ]]; then
-  echo "ERROR: auth.users is incomplete (only $column_count columns; expected at least 20)."
+missing_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT string_agg(required.column_name, ', ' ORDER BY required.column_name) FROM (VALUES ('encrypted_password'), ('is_anonymous'), ('deleted_at'), ('email_change_token_new'), ('reauthentication_token')) AS required(column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name='users' AND actual.column_name=required.column_name)")"
+if [[ -n "$missing_columns" ]]; then
+  echo "ERROR: auth.users is incomplete; missing: $missing_columns"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
   exit 1
 fi

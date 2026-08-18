@@ -124,3 +124,8 @@ sudo bash deploy/oracle-supabase/repair-auth.sh
 Do not run `05_relink_auth.sql` separately or before the script. The repair
 copies SQL to `/tmp`, so the `postgres` OS user is not blocked by repository
 directory permissions. A successful run ends with `AUTH REPAIR COMPLETE`.
+
+The current compose file explicitly sets GoTrue's database namespace to
+`auth`. This is required: otherwise an old migration-history table in another
+schema can make the service start while modern columns such as
+`auth.users.is_anonymous` are still missing.
