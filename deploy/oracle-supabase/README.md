@@ -125,6 +125,10 @@ Do not run `05_relink_auth.sql` separately or before the script. The repair
 copies SQL to `/tmp`, so the `postgres` OS user is not blocked by repository
 directory permissions. A successful run ends with `AUTH REPAIR COMPLETE`.
 
+The repair also applies `06_reconcile_auth_schema.sql`, an idempotent copy of
+GoTrue's canonical `is_anonymous` migration. This fixes installations where
+the migration-history row exists but the corresponding column is absent.
+
 The current compose file explicitly sets GoTrue's database namespace to
 `auth`. This is required: otherwise an old migration-history table in another
 schema can make the service start while modern columns such as

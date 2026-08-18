@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 RESET_SQL="/tmp/forwardflow-04-reset-auth.sql"
 RELINK_SQL="/tmp/forwardflow-05-relink-auth.sql"
+RECONCILE_SQL="/tmp/forwardflow-06-reconcile-auth-schema.sql"
 DB_NAME="forwardflow"
 repair_complete="false"
 
@@ -33,6 +34,7 @@ fi
 
 install -m 0644 "$SCRIPT_DIR/04_reset_auth.sql" "$RESET_SQL"
 install -m 0644 "$SCRIPT_DIR/05_relink_auth.sql" "$RELINK_SQL"
+install -m 0644 "$SCRIPT_DIR/06_reconcile_auth_schema.sql" "$RECONCILE_SQL"
 
 echo "[1/6] Stopping auth so it cannot access the schema during repair..."
 docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" stop auth
@@ -56,7 +58,7 @@ echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
 for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT NOT EXISTS (SELECT required.column_name FROM (VALUES ('encrypted_password'), ('is_anonymous'), ('deleted_at'), ('email_change_token_new'), ('reauthentication_token')) AS required(column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name='users' AND actual.column_name=required.column_name))" \
+    "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token')" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -69,6 +71,9 @@ if [[ "$ready" != "true" ]]; then
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=100 auth
   exit 1
 fi
+
+echo "[4b/6] Reconciling the canonical GoTrue auth schema..."
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$RECONCILE_SQL"
 
 echo "[5/6] Restoring app links and the signup trigger..."
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$RELINK_SQL"
