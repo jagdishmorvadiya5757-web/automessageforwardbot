@@ -106,6 +106,19 @@ BEGIN
   ALTER TABLE auth.identities ALTER COLUMN id SET DEFAULT gen_random_uuid();
   ALTER TABLE auth.identities ALTER COLUMN id SET NOT NULL;
 
+  -- Renaming the legacy text id also renames its old primary-key target. Move
+  -- the primary key to the current UUID id and retain provider uniqueness.
+  ALTER TABLE auth.identities DROP CONSTRAINT IF EXISTS identities_pkey;
+  ALTER TABLE auth.identities ADD CONSTRAINT identities_pkey PRIMARY KEY (id);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'auth.identities'::regclass
+      AND conname = 'identities_provider_id_provider_unique'
+  ) THEN
+    ALTER TABLE auth.identities
+      ADD CONSTRAINT identities_provider_id_provider_unique UNIQUE (provider_id, provider);
+  END IF;
+
   IF to_regclass('auth.mfa_factors') IS NULL THEN
     RAISE EXCEPTION 'auth.mfa_factors does not exist; GoTrue migrations have not completed';
   END IF;
