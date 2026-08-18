@@ -82,7 +82,7 @@ echo "[6/6] Verifying auth schema and API..."
 column_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM information_schema.columns WHERE table_schema='auth' AND table_name='users')")"
 missing_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
-  "SELECT string_agg(required.column_name, ', ' ORDER BY required.column_name) FROM (VALUES ('encrypted_password'), ('is_anonymous'), ('deleted_at'), ('email_change_token_new'), ('reauthentication_token')) AS required(column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name='users' AND actual.column_name=required.column_name)")"
+  "SELECT string_agg(required.column_name, ', ' ORDER BY required.column_name) FROM (VALUES ('id'), ('aud'), ('role'), ('email'), ('encrypted_password'), ('email_confirmed_at'), ('phone'), ('phone_confirmed_at'), ('confirmation_token'), ('recovery_token'), ('email_change_token_current'), ('email_change_token_new'), ('email_change_confirm_status'), ('phone_change_token'), ('reauthentication_token'), ('raw_app_meta_data'), ('raw_user_meta_data'), ('created_at'), ('updated_at'), ('banned_until'), ('deleted_at'), ('is_sso_user'), ('is_anonymous')) AS required(column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name='users' AND actual.column_name=required.column_name)")"
 if [[ -n "$missing_columns" ]]; then
   echo "ERROR: auth.users is incomplete; missing: $missing_columns"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
@@ -95,6 +95,7 @@ health="$(curl --fail --silent --show-error http://127.0.0.1:8000/auth/v1/health
 test_email="forwardflow-auth-check-$(date +%s)@example.com"
 signup_body="$(printf '{"email":"%s","password":"RepairCheck!9284"}' "$test_email")"
 signup_response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
+  -H "apikey: $(grep '^ANON_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
   -H 'Content-Type: application/json' \
   --data "$signup_body" \
   http://127.0.0.1:8000/auth/v1/signup)"
