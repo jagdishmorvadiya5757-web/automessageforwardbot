@@ -44,6 +44,12 @@ install -m 0644 "$SCRIPT_DIR/06_reconcile_auth_schema.sql" "$RECONCILE_SQL"
 echo "[1/6] Stopping auth so it cannot access the schema during repair..."
 docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" stop auth
 
+# End any old GoTrue connection that survived the container stop. Otherwise a
+# stale pooled session can hold locks while the schema is being rebuilt.
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d postgres -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND usename = 'supabase_auth_admin' AND pid <> pg_backend_pid();" \
+  >/dev/null
+
 echo "[2/6] Removing the incompatible stub auth schema..."
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -f "$RESET_SQL"
 
@@ -63,7 +69,7 @@ echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
 for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token')" \
+    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND (SELECT count(*) FROM auth.schema_migrations) >= 40" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -72,7 +78,7 @@ for _ in $(seq 1 90); do
 done
 
 if [[ "$ready" != "true" ]]; then
-  echo "ERROR: GoTrue migrations did not create the complete auth.users schema. Latest auth logs:"
+  echo "ERROR: GoTrue migrations did not create the complete auth schema. Latest auth logs:"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=100 auth
   exit 1
 fi
