@@ -143,7 +143,7 @@ fi
 auth_migration_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM auth.schema_migrations")"
 if [[ "$auth_migration_count" -lt 52 ]]; then
-  echo "ERROR: only $auth_migration_count auth migrations were recorded; expected a complete GoTrue schema"
+  echo "ERROR: only $auth_migration_count auth migrations were recorded; expected at least 52 for GoTrue v2.158.1"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
   exit 1
 fi
