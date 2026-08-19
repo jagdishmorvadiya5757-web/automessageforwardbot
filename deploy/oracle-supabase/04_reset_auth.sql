@@ -68,6 +68,26 @@ BEGIN
   END LOOP;
 END $$;
 
+-- A table-only reset is not enough. GoTrue migrations create several enum
+-- types (factor_status, factor_type, assurance_level, and others). PostgreSQL
+-- keeps those types after their tables are dropped, so a fresh migration can
+-- stop at CREATE TYPE with "already exists" and leave auth only partially
+-- rebuilt. Remove every user-defined auth type after the tables are gone.
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT t.typname
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'auth'
+      AND t.typtype IN ('e', 'd', 'c', 'r', 'm')
+      AND t.typname NOT LIKE '\\_%'
+  LOOP
+    EXECUTE format('DROP TYPE IF EXISTS auth.%I CASCADE', r.typname);
+  END LOOP;
+END $$;
+
 -- 4. helper functions GoTrue does not own -----------------------------------
 CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
 ALTER SCHEMA auth OWNER TO supabase_auth_admin;

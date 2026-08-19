@@ -46,6 +46,18 @@ async function proxyAuth(request: Request) {
       path: suffix,
       status: upstream.status,
     });
+
+    const contentType = responseHeaders.get("content-type") ?? "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      return Response.json(
+        {
+          code: upstream.status,
+          error_code: "authentication_service_error",
+          msg: "Authentication service is temporarily unavailable. Please try again shortly.",
+        },
+        { status: upstream.status },
+      );
+    }
   }
 
   return new Response(upstream.body, {

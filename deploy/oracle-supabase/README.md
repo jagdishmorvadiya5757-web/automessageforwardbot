@@ -123,7 +123,8 @@ sudo bash deploy/oracle-supabase/repair-auth.sh
 
 Do not run `05_relink_auth.sql` separately or before the script. The repair
 copies SQL to `/tmp`, so the `postgres` OS user is not blocked by repository
-directory permissions. A successful run ends with `AUTH REPAIR COMPLETE`.
+directory permissions. A successful run ends with `signup self-test: HTTP
+200`, `password login self-test: HTTP 200`, and `AUTH REPAIR COMPLETE`.
 
 The repair also applies `06_reconcile_auth_schema.sql`, an idempotent copy of
 GoTrue's canonical `is_anonymous` migration. This fixes installations where
