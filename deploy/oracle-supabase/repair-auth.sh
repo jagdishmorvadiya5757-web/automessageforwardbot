@@ -69,7 +69,7 @@ echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
 for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND (SELECT count(*) FROM auth.schema_migrations) >= 40" \
+    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='refresh_tokens' AND column_name='session_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_amr_claims' AND column_name='session_id') AND (SELECT count(*) FROM auth.schema_migrations) >= 40" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -101,7 +101,7 @@ if [[ -n "$missing_columns" ]]; then
 fi
 
 missing_tables="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
-  "SELECT string_agg(required.table_name, ', ' ORDER BY required.table_name) FROM (VALUES ('users'), ('identities'), ('sessions'), ('audit_log_entries'), ('schema_migrations'), ('one_time_tokens')) AS required(table_name) WHERE to_regclass('auth.' || required.table_name) IS NULL")"
+  "SELECT string_agg(required.table_name, ', ' ORDER BY required.table_name) FROM (VALUES ('users'), ('identities'), ('sessions'), ('refresh_tokens'), ('mfa_amr_claims'), ('audit_log_entries'), ('schema_migrations'), ('one_time_tokens')) AS required(table_name) WHERE to_regclass('auth.' || required.table_name) IS NULL")"
 users_owner="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid = 'auth.users'::regclass")"
 if [[ -n "$missing_tables" ]]; then
@@ -115,7 +115,7 @@ if [[ "$users_owner" != "supabase_auth_admin" ]]; then
 fi
 
 missing_relation_columns="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
-  "SELECT string_agg(required.table_name || '.' || required.column_name, ', ' ORDER BY required.table_name, required.column_name) FROM (VALUES ('identities', 'id'), ('identities', 'provider_id'), ('identities', 'user_id'), ('identities', 'identity_data'), ('identities', 'provider'), ('identities', 'last_sign_in_at'), ('identities', 'created_at'), ('identities', 'updated_at'), ('identities', 'email'), ('mfa_factors', 'id'), ('mfa_factors', 'user_id'), ('mfa_factors', 'friendly_name'), ('mfa_factors', 'factor_type'), ('mfa_factors', 'status'), ('mfa_factors', 'secret'), ('mfa_factors', 'created_at'), ('mfa_factors', 'updated_at'), ('mfa_factors', 'phone'), ('mfa_factors', 'last_challenged_at')) AS required(table_name, column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name=required.table_name AND actual.column_name=required.column_name)")"
+  "SELECT string_agg(required.table_name || '.' || required.column_name, ', ' ORDER BY required.table_name, required.column_name) FROM (VALUES ('identities', 'id'), ('identities', 'provider_id'), ('identities', 'user_id'), ('identities', 'identity_data'), ('identities', 'provider'), ('identities', 'last_sign_in_at'), ('identities', 'created_at'), ('identities', 'updated_at'), ('identities', 'email'), ('mfa_factors', 'id'), ('mfa_factors', 'user_id'), ('mfa_factors', 'friendly_name'), ('mfa_factors', 'factor_type'), ('mfa_factors', 'status'), ('mfa_factors', 'secret'), ('mfa_factors', 'created_at'), ('mfa_factors', 'updated_at'), ('mfa_factors', 'phone'), ('mfa_factors', 'last_challenged_at'), ('sessions', 'id'), ('sessions', 'user_id'), ('sessions', 'aal'), ('sessions', 'not_after'), ('refresh_tokens', 'token'), ('refresh_tokens', 'user_id'), ('refresh_tokens', 'session_id'), ('mfa_amr_claims', 'session_id'), ('mfa_amr_claims', 'authentication_method')) AS required(table_name, column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns actual WHERE actual.table_schema='auth' AND actual.table_name=required.table_name AND actual.column_name=required.column_name)")"
 if [[ -n "$missing_relation_columns" ]]; then
   echo "ERROR: eager-loaded auth relations are incomplete; missing: $missing_relation_columns"
   exit 1
@@ -192,11 +192,36 @@ if [[ "$signup_status" -ge 500 || "$signup_status" -lt 200 || "$signup_status" -
   exit 1
 fi
 
+# Password login also reads sessions, refresh_tokens, and MFA claims. Exercise
+# that exact endpoint before removing the temporary account.
+token_status="000"
+token_json=""
+for attempt in $(seq 1 5); do
+  token_response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
+    -H "apikey: $(grep '^ANON_KEY=' "$SCRIPT_DIR/.env" | cut -d= -f2-)" \
+    -H 'Content-Type: application/json' \
+    --data "$signup_body" \
+    'http://127.0.0.1:8000/auth/v1/token?grant_type=password' || printf '\n000')"
+  token_status="${token_response##*$'\n'}"
+  token_json="${token_response%$'\n'*}"
+  if [[ "$token_status" -ge 200 && "$token_status" -lt 300 ]]; then
+    break
+  fi
+  if [[ "$attempt" -lt 5 ]]; then sleep 2; fi
+done
+if [[ "$token_status" -lt 200 || "$token_status" -ge 300 ]]; then
+  echo "ERROR: password login self-test returned HTTP $token_status: $token_json"
+  echo "Latest auth logs:"
+  docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
+  exit 1
+fi
+
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" \
   -c "DELETE FROM auth.users WHERE email = '$test_email'" >/dev/null
 echo "auth.users ready: $column_count columns"
 docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" ps auth
 echo "$health"
 echo "signup self-test: HTTP $signup_status"
+echo "password login self-test: HTTP $token_status"
 echo "AUTH REPAIR COMPLETE"
 repair_complete="true"

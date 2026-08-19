@@ -70,9 +70,12 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 GRANT SELECT ON auth.users TO authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA auth TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin, service_role;
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth
   GRANT SELECT ON TABLES TO authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth
   GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth
+  GRANT USAGE, SELECT ON SEQUENCES TO supabase_auth_admin, service_role;
 
 DROP TABLE IF EXISTS public._auth_fk_backup;
