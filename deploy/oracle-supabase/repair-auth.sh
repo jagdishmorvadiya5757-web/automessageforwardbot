@@ -69,7 +69,7 @@ echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
 for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='refresh_tokens' AND column_name='session_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_amr_claims' AND column_name='session_id') AND (SELECT count(*) FROM auth.schema_migrations) >= 40" \
+    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='refresh_tokens' AND column_name='session_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_amr_claims' AND column_name='session_id') AND (SELECT count(*) FROM auth.schema_migrations) >= 52" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -142,7 +142,7 @@ fi
 
 auth_migration_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM auth.schema_migrations")"
-if [[ "$auth_migration_count" -lt 40 ]]; then
+if [[ "$auth_migration_count" -lt 52 ]]; then
   echo "ERROR: only $auth_migration_count auth migrations were recorded; expected a complete GoTrue schema"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
   exit 1
