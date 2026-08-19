@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/oracle-auth-middleware";
 
 /**
  * Generates a fresh worker token for the current user, stores only its hash,
