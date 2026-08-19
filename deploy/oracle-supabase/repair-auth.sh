@@ -69,7 +69,7 @@ echo "[4/6] Waiting for ALL GoTrue migrations (up to 180 seconds)..."
 ready="false"
 for _ in $(seq 1 90); do
   if sudo -u postgres psql -d "$DB_NAME" -tAc \
-    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='refresh_tokens' AND column_name='session_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_amr_claims' AND column_name='session_id') AND (SELECT count(*) FROM auth.schema_migrations) >= 40" \
+    "SELECT to_regclass('auth.users') IS NOT NULL AND to_regclass('auth.identities') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL AND to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.audit_log_entries') IS NOT NULL AND to_regclass('auth.one_time_tokens') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='reauthentication_token') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_factors' AND column_name='factor_type') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='refresh_tokens' AND column_name='session_id') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='mfa_amr_claims' AND column_name='session_id') AND (SELECT count(*) FROM auth.schema_migrations) >= 52" \
     | grep -qx 't'; then
     ready="true"
     break
@@ -121,6 +121,18 @@ if [[ -n "$missing_relation_columns" ]]; then
   exit 1
 fi
 
+# A complete column list is not sufficient: accounts inserted during an
+# earlier partial repair may have NULL model fields that GoTrue cannot scan.
+# Reconciliation above normalizes them; fail here if any unreadable rows remain.
+unreadable_users="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT count(*) FROM auth.users WHERE instance_id IS NULL OR aud IS NULL OR role IS NULL OR confirmation_token IS NULL OR recovery_token IS NULL OR email_change_token_current IS NULL OR email_change_token_new IS NULL OR email_change IS NULL OR email_change_confirm_status IS NULL OR phone_change_token IS NULL OR phone_change IS NULL OR reauthentication_token IS NULL OR raw_app_meta_data IS NULL OR raw_user_meta_data IS NULL OR created_at IS NULL OR updated_at IS NULL OR is_sso_user IS NULL OR is_anonymous IS NULL")"
+unreadable_identities="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT count(*) FROM auth.identities WHERE id IS NULL OR provider_id IS NULL OR user_id IS NULL OR identity_data IS NULL OR provider IS NULL OR created_at IS NULL OR updated_at IS NULL")"
+if [[ "$unreadable_users" -ne 0 || "$unreadable_identities" -ne 0 ]]; then
+  echo "ERROR: auth contains unreadable legacy rows (users=$unreadable_users, identities=$unreadable_identities)"
+  exit 1
+fi
+
 confirmed_at_generated="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT is_generated FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='confirmed_at'")"
 if [[ "$confirmed_at_generated" != "ALWAYS" ]]; then
@@ -130,8 +142,8 @@ fi
 
 auth_migration_count="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM auth.schema_migrations")"
-if [[ "$auth_migration_count" -lt 40 ]]; then
-  echo "ERROR: only $auth_migration_count auth migrations were recorded; expected a complete GoTrue schema"
+if [[ "$auth_migration_count" -lt 52 ]]; then
+  echo "ERROR: only $auth_migration_count auth migrations were recorded; expected at least 52 for GoTrue v2.158.1"
   docker compose --env-file "$SCRIPT_DIR/.env" -f "$COMPOSE_FILE" logs --tail=120 auth
   exit 1
 fi
@@ -158,10 +170,10 @@ WHERE instance_id = '00000000-0000-0000-0000-000000000000'
   AND aud = 'authenticated' AND is_sso_user = false;
 SELECT id, provider_id, user_id, identity_data, provider, last_sign_in_at,
        created_at, updated_at, email
-FROM identities WHERE false;
+FROM identities;
 SELECT id, user_id, created_at, updated_at, status, friendly_name, secret,
        factor_type, phone, last_challenged_at
-FROM mfa_factors WHERE false;
+FROM mfa_factors;
 RESET ROLE;
 SQL
 
