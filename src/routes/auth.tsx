@@ -1,11 +1,12 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { directAdminLogin } from "@/lib/direct-auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
 
@@ -14,65 +15,33 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Sign in · ForwardFlow" },
       { name: "description", content: "Sign in to manage your Telegram auto-forwarding rules." },
+      { property: "og:title", content: "Sign in · ForwardFlow" },
+      { property: "og:description", content: "Access your Telegram auto-forwarding dashboard." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthPage,
 });
 
 function AuthPage() {
-  const navigate = useNavigate();
+  const login = useServerFn(directAdminLogin);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (active && data.user) navigate({ to: "/app" });
-      })
-      .catch(() => {
-        // Keep the sign-in form available while the auth service recovers.
-      });
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return toast.error(error.message);
+      const session = await login({ data: { email, password } });
+      const storageKey = (supabase.auth as unknown as { storageKey?: string }).storageKey;
+      if (!storageKey) throw new Error("Session storage is unavailable in this browser.");
+      window.localStorage.setItem(storageKey, JSON.stringify(session));
       toast.success("Welcome back!");
-      navigate({ to: "/app" });
-    } catch {
-      toast.error("Authentication service is unavailable. Please try again shortly.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: { display_name: displayName || email.split("@")[0] },
-        },
-      });
-      if (error) return toast.error(error.message);
-      toast.success("Account created!");
-      navigate({ to: "/app" });
-    } catch {
-      toast.error("Authentication service is unavailable. Please try again shortly.");
+      window.location.href = "/app";
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -89,50 +58,43 @@ function AuthPage() {
         </Link>
         <Card>
           <CardHeader>
-            <CardTitle>Get started</CardTitle>
-            <CardDescription>Manage your Telegram auto-forwarding rules.</CardDescription>
+            <CardTitle>Sign in</CardTitle>
+            <CardDescription>
+              Public sign-ups are paused. Use your admin credentials to open the dashboard.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign in</TabsTrigger>
-                <TabsTrigger value="signup">Sign up</TabsTrigger>
-              </TabsList>
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="si-email">Email</Label>
-                    <Input id="si-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="si-pw">Password</Label>
-                    <Input id="si-pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                  </div>
-                  <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
-                    {loading ? "Signing in…" : "Sign in"}
-                  </Button>
-                </form>
-              </TabsContent>
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="su-name">Display name</Label>
-                    <Input id="su-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Optional" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="su-email">Email</Label>
-                    <Input id="su-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="su-pw">Password</Label>
-                    <Input id="su-pw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-                  </div>
-                  <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
-                    {loading ? "Creating…" : "Create account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="si-email">Email</Label>
+                <Input
+                  id="si-email"
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="si-pw">Password</Label>
+                <Input
+                  id="si-pw"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
+                disabled={loading}
+              >
+                {loading ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
