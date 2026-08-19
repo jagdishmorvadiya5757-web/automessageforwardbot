@@ -27,9 +27,18 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/app" });
-    });
+    let active = true;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (active && data.user) navigate({ to: "/app" });
+      })
+      .catch(() => {
+        // Keep the sign-in form available while the auth service recovers.
+      });
+    return () => {
+      active = false;
+    };
   }, [navigate]);
 
   async function handleSignIn(e: React.FormEvent) {
