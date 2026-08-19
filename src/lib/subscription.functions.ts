@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/oracle-auth-middleware";
 
 export type SubscriptionInfo = {
   plan: "trial" | "pro" | "business" | "expired";
