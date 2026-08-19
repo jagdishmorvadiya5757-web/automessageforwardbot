@@ -129,6 +129,8 @@ directory permissions. A successful run ends with `signup self-test: HTTP
 The repair also applies `06_reconcile_auth_schema.sql`, an idempotent copy of
 GoTrue's canonical `is_anonymous` migration. This fixes installations where
 the migration-history row exists but the corresponding column is absent.
+It also normalizes legacy user and identity rows with missing model values;
+those rows otherwise make password login fail before password verification.
 
 The current compose file explicitly sets GoTrue's database namespace to
 `auth`. This is required: otherwise an old migration-history table in another

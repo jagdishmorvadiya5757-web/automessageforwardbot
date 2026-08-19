@@ -45,6 +45,31 @@ BEGIN
     ADD COLUMN IF NOT EXISTS is_sso_user boolean NOT NULL DEFAULT false,
     ADD COLUMN IF NOT EXISTS is_anonymous boolean NOT NULL DEFAULT false;
 
+  -- Rows created manually while the schema was incomplete can contain NULL in
+  -- fields represented by non-nullable Go values. PostgreSQL accepts those
+  -- rows, but GoTrue cannot scan them and password login reports the vague
+  -- "Database error querying schema" before it ever checks the password.
+  UPDATE auth.users
+  SET instance_id = COALESCE(instance_id, '00000000-0000-0000-0000-000000000000'::uuid),
+      aud = COALESCE(NULLIF(aud, ''), 'authenticated'),
+      role = COALESCE(NULLIF(role, ''), 'authenticated'),
+      email = lower(email),
+      confirmation_token = COALESCE(confirmation_token, ''),
+      recovery_token = COALESCE(recovery_token, ''),
+      email_change_token_current = COALESCE(email_change_token_current, ''),
+      email_change_token_new = COALESCE(email_change_token_new, ''),
+      email_change = COALESCE(email_change, ''),
+      email_change_confirm_status = COALESCE(email_change_confirm_status, 0),
+      phone_change_token = COALESCE(phone_change_token, ''),
+      phone_change = COALESCE(phone_change, ''),
+      reauthentication_token = COALESCE(reauthentication_token, ''),
+      raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb),
+      raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb),
+      created_at = COALESCE(created_at, now()),
+      updated_at = COALESCE(updated_at, created_at, now()),
+      is_sso_user = COALESCE(is_sso_user, false),
+      is_anonymous = COALESCE(is_anonymous, false);
+
   -- GoTrue defines confirmed_at as a stored generated compatibility field.
   -- Replace the plain fallback created by an earlier repair, if present.
   IF EXISTS (
@@ -132,6 +157,12 @@ BEGIN
     ADD COLUMN IF NOT EXISTS updated_at timestamptz,
     ADD COLUMN IF NOT EXISTS email text GENERATED ALWAYS AS (lower(identity_data ->> 'email')) STORED;
   UPDATE auth.identities SET id = gen_random_uuid() WHERE id IS NULL;
+  UPDATE auth.identities
+  SET identity_data = COALESCE(identity_data, '{}'::jsonb),
+      provider = COALESCE(NULLIF(provider, ''), 'email'),
+      provider_id = COALESCE(NULLIF(provider_id, ''), identity_data ->> 'sub', user_id::text),
+      created_at = COALESCE(created_at, now()),
+      updated_at = COALESCE(updated_at, created_at, now());
   ALTER TABLE auth.identities ALTER COLUMN id SET DEFAULT gen_random_uuid();
   ALTER TABLE auth.identities ALTER COLUMN id SET NOT NULL;
 

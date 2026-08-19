@@ -121,6 +121,18 @@ if [[ -n "$missing_relation_columns" ]]; then
   exit 1
 fi
 
+# A complete column list is not sufficient: accounts inserted during an
+# earlier partial repair may have NULL model fields that GoTrue cannot scan.
+# Reconciliation above normalizes them; fail here if any unreadable rows remain.
+unreadable_users="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT count(*) FROM auth.users WHERE instance_id IS NULL OR aud IS NULL OR role IS NULL OR confirmation_token IS NULL OR recovery_token IS NULL OR email_change_token_current IS NULL OR email_change_token_new IS NULL OR email_change IS NULL OR email_change_confirm_status IS NULL OR phone_change_token IS NULL OR phone_change IS NULL OR reauthentication_token IS NULL OR raw_app_meta_data IS NULL OR raw_user_meta_data IS NULL OR created_at IS NULL OR updated_at IS NULL OR is_sso_user IS NULL OR is_anonymous IS NULL")"
+unreadable_identities="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
+  "SELECT count(*) FROM auth.identities WHERE id IS NULL OR provider_id IS NULL OR user_id IS NULL OR identity_data IS NULL OR provider IS NULL OR created_at IS NULL OR updated_at IS NULL")"
+if [[ "$unreadable_users" -ne 0 || "$unreadable_identities" -ne 0 ]]; then
+  echo "ERROR: auth contains unreadable legacy rows (users=$unreadable_users, identities=$unreadable_identities)"
+  exit 1
+fi
+
 confirmed_at_generated="$(sudo -u postgres psql -d "$DB_NAME" -tAc \
   "SELECT is_generated FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='confirmed_at'")"
 if [[ "$confirmed_at_generated" != "ALWAYS" ]]; then
@@ -158,10 +170,10 @@ WHERE instance_id = '00000000-0000-0000-0000-000000000000'
   AND aud = 'authenticated' AND is_sso_user = false;
 SELECT id, provider_id, user_id, identity_data, provider, last_sign_in_at,
        created_at, updated_at, email
-FROM identities WHERE false;
+FROM identities;
 SELECT id, user_id, created_at, updated_at, status, friendly_name, secret,
        factor_type, phone, last_challenged_at
-FROM mfa_factors WHERE false;
+FROM mfa_factors;
 RESET ROLE;
 SQL
 
