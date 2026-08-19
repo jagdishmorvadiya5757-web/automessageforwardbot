@@ -27,6 +27,28 @@ export function safeEqual(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+/** Verifies an HS256 token locally and returns its claims, or null when invalid. */
+export function verifySupabaseJwt(
+  token: string,
+  secret: string,
+): (Record<string, unknown> & { sub?: string; exp?: number }) | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [header, payload, signature] = parts as [string, string, string];
+  const expected = base64url(createHmac("sha256", secret).update(`${header}.${payload}`).digest());
+  if (!safeEqual(signature, expected)) return null;
+  try {
+    const claims = JSON.parse(
+      Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
+    ) as { sub?: string; exp?: number };
+    if (typeof claims.exp === "number" && claims.exp * 1000 < Date.now()) return null;
+    return claims;
+  } catch {
+    return null;
+  }
+}
+
+
 export function buildAdminSession(email: string, secret: string) {
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + 60 * 60 * 24 * 7;

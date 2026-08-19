@@ -1,13 +1,43 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { buildAdminSession, verifySupabaseJwt } from "@/lib/direct-auth.server";
 
 const ORACLE_AUTH_URL = "https://automessagebot.duckdns.org/auth/v1";
+
+/**
+ * Serves session endpoints for the direct admin login locally, so the dashboard
+ * keeps working while the upstream auth service is unavailable.
+ */
+function handleDirectSession(request: Request, suffix: string, search: string): Response | null {
+  const secret = process.env['ORACLE_JWT_SECRET'];
+  const email = process.env['DIRECT_ADMIN_EMAIL'];
+  if (!secret || !email) return null;
+
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+
+  if (suffix === "/user" && token && verifySupabaseJwt(token, secret)) {
+    return Response.json(buildAdminSession(email, secret).user);
+  }
+  if (suffix === "/logout") {
+    return new Response(null, { status: 204 });
+  }
+  if (suffix === "/token" && new URLSearchParams(search).get("grant_type") === "refresh_token") {
+    // The direct session is self-issued; hand back a freshly signed one.
+    return Response.json(buildAdminSession(email, secret));
+  }
+  return null;
+}
 
 async function proxyAuth(request: Request) {
   const requestUrl = new URL(request.url);
   const marker = "/api/public/oracle-auth";
   const markerIndex = requestUrl.pathname.indexOf(marker);
   const suffix = markerIndex >= 0 ? requestUrl.pathname.slice(markerIndex + marker.length) : "";
+
+  const local = handleDirectSession(request, suffix, requestUrl.search);
+  if (local) return local;
+
   const targetUrl = `${ORACLE_AUTH_URL}${suffix}${requestUrl.search}`;
+
   const headers = new Headers(request.headers);
 
   headers.delete("host");
