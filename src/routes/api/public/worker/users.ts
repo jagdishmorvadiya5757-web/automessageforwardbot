@@ -35,6 +35,15 @@ export const Route = createFileRoute("/api/public/worker/users")({
             .map((s) => s.user_id),
         );
 
+        // Admins can always connect Telegram, including the direct-admin recovery
+        // account which may not have received a signup-triggered subscription row.
+        const { data: adminRows, error: adminErr } = await supabaseAdmin
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin");
+        if (adminErr) return new Response(adminErr.message, { status: 500 });
+        for (const row of adminRows ?? []) activeUserIds.add(row.user_id);
+
         // Existing saved sessions for those users.
         const { data: sessions, error: sesErr } = await supabaseAdmin
           .from("telegram_sessions")

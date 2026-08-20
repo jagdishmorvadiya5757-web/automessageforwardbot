@@ -43,3 +43,74 @@ export const getTelegramConnectionState = createServerFn({ method: "GET" })
       detail: authRow?.detail ?? null,
     };
   });
+
+export const requestTelegramCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { phone: string }) => {
+    const phone = input.phone.replace(/\s/g, "");
+    if (!/^\+[1-9]\d{6,14}$/.test(phone)) throw new Error("Enter a valid phone number with country code.");
+    return { phone };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("telegram_auth").upsert(
+      {
+        user_id: context.userId,
+        phone: data.phone,
+        status: "code_requested",
+        pending_action: "request_code",
+        code: null,
+        two_fa_password: null,
+        phone_code_hash: null,
+        detail: null,
+      },
+      { onConflict: "user_id" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const submitTelegramCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { code: string }) => {
+    const code = input.code.replace(/\s/g, "");
+    if (!/^\d{4,8}$/.test(code)) throw new Error("Enter the Telegram verification code.");
+    return { code };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("telegram_auth")
+      .update({ code: data.code, pending_action: "submit_code", detail: null })
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const submitTelegramPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { password: string }) => {
+    if (!input.password || input.password.length > 256) throw new Error("Enter your Telegram two-step password.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("telegram_auth")
+      .update({ two_fa_password: data.password, pending_action: "submit_password", detail: null })
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const disconnectTelegram = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("telegram_auth")
+      .update({ pending_action: "logout", status: "code_requested", detail: null, phone_code_hash: null })
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

@@ -29,7 +29,7 @@ TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
-USERS_POLL_INTERVAL = int(os.environ.get("USERS_POLL_INTERVAL", "20"))
+USERS_POLL_INTERVAL = int(os.environ.get("USERS_POLL_INTERVAL", "5"))
 IDLE_POLL_INTERVAL = int(os.environ.get("IDLE_POLL_INTERVAL", "30"))
 SPAWN_CONCURRENCY = int(os.environ.get("SPAWN_CONCURRENCY", "5"))
 SPAWN_GAP = float(os.environ.get("SPAWN_GAP", "0.4"))
@@ -37,7 +37,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-07-29-multiuser-v11"
+WORKER_VERSION = "2026-08-20-multiuser-v12"
 
 http = httpx.AsyncClient(timeout=30)
 
