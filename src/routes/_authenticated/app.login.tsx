@@ -2,8 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
-import { getTelegramConnectionState, type TelegramConnectionState } from "@/lib/telegram.functions";
+import {
+  disconnectTelegram,
+  getTelegramConnectionState,
+  requestTelegramCode,
+  submitTelegramCode,
+  submitTelegramPassword,
+  type TelegramConnectionState,
+} from "@/lib/telegram.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +57,10 @@ const STATUS_LABEL: Record<string, string> = {
 function TelegramLoginPage() {
   const qc = useQueryClient();
   const fetchTelegramState = useServerFn(getTelegramConnectionState);
+  const requestCodeFn = useServerFn(requestTelegramCode);
+  const submitCodeFn = useServerFn(submitTelegramCode);
+  const submitPasswordFn = useServerFn(submitTelegramPassword);
+  const disconnectFn = useServerFn(disconnectTelegram);
   const [dial, setDial] = useState("+91");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -65,31 +75,8 @@ function TelegramLoginPage() {
 
   const status = state?.status ?? "logged_out";
 
-  async function uid() {
-    const { data } = await supabase.auth.getUser();
-    const id = data.user?.id;
-    if (!id) throw new Error("Not signed in");
-    return id;
-  }
-
   const requestCode = useMutation({
-    mutationFn: async () => {
-      const id = await uid();
-      const { error } = await supabase.from("telegram_auth").upsert(
-        {
-          user_id: id,
-          phone: fullPhone,
-          status: "code_requested",
-          pending_action: "request_code",
-          code: null,
-          two_fa_password: null,
-          phone_code_hash: null,
-          detail: null,
-        },
-        { onConflict: "user_id" },
-      );
-      if (error) throw error;
-    },
+    mutationFn: () => requestCodeFn({ data: { phone: fullPhone } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["telegram-auth"] });
       toast.success("Sent to worker — check your Telegram app for the code");
@@ -98,14 +85,7 @@ function TelegramLoginPage() {
   });
 
   const submitCode = useMutation({
-    mutationFn: async () => {
-      const id = await uid();
-      const { error } = await supabase
-        .from("telegram_auth")
-        .update({ code: code.trim(), pending_action: "submit_code", detail: null })
-        .eq("user_id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => submitCodeFn({ data: { code: code.trim() } }),
     onSuccess: () => {
       setCode("");
       qc.invalidateQueries({ queryKey: ["telegram-auth"] });
@@ -115,14 +95,7 @@ function TelegramLoginPage() {
   });
 
   const submitPassword = useMutation({
-    mutationFn: async () => {
-      const id = await uid();
-      const { error } = await supabase
-        .from("telegram_auth")
-        .update({ two_fa_password: password, pending_action: "submit_password", detail: null })
-        .eq("user_id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => submitPasswordFn({ data: { password } }),
     onSuccess: () => {
       setPassword("");
       qc.invalidateQueries({ queryKey: ["telegram-auth"] });
@@ -132,19 +105,7 @@ function TelegramLoginPage() {
   });
 
   const logout = useMutation({
-    mutationFn: async () => {
-      const id = await uid();
-      const { error } = await supabase
-        .from("telegram_auth")
-        .update({
-          pending_action: "logout",
-          status: "code_requested",
-          detail: null,
-          phone_code_hash: null,
-        })
-        .eq("user_id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => disconnectFn({}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["telegram-auth"] });
       toast.success("Disconnect requested");
@@ -243,10 +204,10 @@ function TelegramLoginPage() {
                 onClick={() => requestCode.mutate()}
                 disabled={requestCode.isPending || !phone.trim()}
               >
-                {status === "code_requested" ? (
+                {requestCode.isPending || status === "code_requested" ? (
                   <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Waiting for worker…</>
                 ) : (
-                  "Next"
+                  "Send Telegram code"
                 )}
               </Button>
             </CardContent>

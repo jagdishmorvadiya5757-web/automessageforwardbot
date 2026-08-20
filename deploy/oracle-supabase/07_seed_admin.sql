@@ -23,6 +23,13 @@ BEGIN
   VALUES (_uid, 'admin'), (_uid, 'user')
   ON CONFLICT DO NOTHING;
 
+  IF to_regclass('public.subscriptions') IS NOT NULL THEN
+    INSERT INTO public.subscriptions (user_id, plan, is_active, subscription_ends_at)
+    VALUES (_uid, 'business', true, null)
+    ON CONFLICT (user_id) DO UPDATE SET plan = 'business', is_active = true,
+      subscription_ends_at = null;
+  END IF;
+
   IF to_regclass('public.wallets') IS NOT NULL THEN
     INSERT INTO public.wallets (user_id) VALUES (_uid) ON CONFLICT DO NOTHING;
   END IF;
