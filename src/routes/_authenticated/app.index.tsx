@@ -1,7 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  deleteRule,
+  listChannels,
+  listRules,
+  resetRuleCounter,
+  saveRule,
+  setRuleEnabled,
+  type ChannelRow,
+  type EndpointType,
+  type RuleRow,
+} from "@/lib/rules.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,27 +37,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown, Search, Sparkles } from "lucide-react";
 
-type EndpointType = "channel" | "bot";
-type Rule = {
-  id: string;
-  name: string | null;
-  source: string;
-  source_type: EndpointType;
-  destination: string;
-  destination_type: EndpointType;
-  enabled: boolean;
-  include_keywords: string[];
-  exclude_keywords: string[];
-  forwarded_count: number;
-  max_forward_count: number | null;
-  forward_delay: number;
-};
-type Channel = {
-  chat_id: string;
-  title: string;
-  username: string | null;
-  kind: string;
-};
+type Rule = RuleRow;
+type Channel = ChannelRow;
 
 export const Route = createFileRoute("/_authenticated/app/")({
   component: RulesPage,
@@ -84,6 +76,12 @@ const empty = {
 
 function RulesPage() {
   const qc = useQueryClient();
+  const listRulesFn = useServerFn(listRules);
+  const listChannelsFn = useServerFn(listChannels);
+  const saveRuleFn = useServerFn(saveRule);
+  const setRuleEnabledFn = useServerFn(setRuleEnabled);
+  const deleteRuleFn = useServerFn(deleteRule);
+  const resetRuleCounterFn = useServerFn(resetRuleCounter);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [form, setForm] = useState(empty);
@@ -92,37 +90,21 @@ function RulesPage() {
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ["rules"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("forwarding_rules")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Rule[];
-    },
+    queryFn: (): Promise<Rule[]> => listRulesFn({}),
     refetchInterval: 2000,
   });
 
   const { data: channels = [] } = useQuery({
     queryKey: ["channels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("telegram_channels")
-        .select("chat_id, title, username, kind")
-        .order("title", { ascending: true });
-      if (error) throw error;
-      return data as Channel[];
-    },
+    queryFn: (): Promise<Channel[]> => listChannelsFn({}),
   });
 
 
   const save = useMutation({
-    mutationFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
-      if (!uid) throw new Error("Not signed in");
-      const payload = {
-        user_id: uid,
+    mutationFn: () =>
+      saveRuleFn({
+        data: {
+        id: editing?.id ?? null,
         name: form.name || null,
         source: form.source.trim(),
         source_type: form.source_type,
@@ -132,15 +114,8 @@ function RulesPage() {
         exclude_keywords: splitKw(form.exclude_keywords),
         max_forward_count: parseLimit(form.max_forward_count),
         forward_delay: parseDelay(form.forward_delay),
-      };
-      if (editing) {
-        const { error } = await supabase.from("forwarding_rules").update(payload).eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("forwarding_rules").insert(payload);
-        if (error) throw error;
-      }
-    },
+        },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
       setOpen(false);
@@ -152,19 +127,14 @@ function RulesPage() {
   });
 
   const toggle = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const { error } = await supabase.from("forwarding_rules").update({ enabled }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      setRuleEnabledFn({ data: { id, enabled } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["rules"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("forwarding_rules").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => deleteRuleFn({ data: { id } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
       toast.success("Rule deleted");
@@ -173,13 +143,7 @@ function RulesPage() {
   });
 
   const resetCount = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("forwarding_rules")
-        .update({ forwarded_count: 0, enabled: true })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => resetRuleCounterFn({ data: { id } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
       toast.success("Counter reset");

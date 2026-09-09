@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireMasterToken } from "@/integrations/supabase/worker-auth.server";
 
+const DIRECT_ADMIN_USER_ID = "11111111-1111-4111-8111-111111111111";
+
 // GET /api/public/worker/users
 // Multi-user worker calls this every N seconds to learn which users it must
 // currently service. Returns active subscribers that either already have a
@@ -34,6 +36,10 @@ export const Route = createFileRoute("/api/public/worker/users")({
             })
             .map((s) => s.user_id),
         );
+
+        // The temporary direct-admin login does not depend on the hosted auth
+        // signup trigger, so always let the master worker service this account.
+        activeUserIds.add(DIRECT_ADMIN_USER_ID);
 
         // Admins can always connect Telegram, including the direct-admin recovery
         // account which may not have received a signup-triggered subscription row.

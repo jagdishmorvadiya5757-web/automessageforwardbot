@@ -37,7 +37,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-08-20-multiuser-v12"
+WORKER_VERSION = "2026-09-09-multiuser-v13"
 
 http = httpx.AsyncClient(timeout=30)
 
@@ -160,7 +160,10 @@ async def release_forwarding_slot(user_id: str, rule_id: str):
 
 
 async def push_channels(user_id: str, channels: list[dict]):
-    await api_post("/api/public/worker/channels", user_id, {"channels": channels})
+    result = await api_post("/api/public/worker/channels", user_id, {"channels": channels})
+    if result:
+        print(f"[{user_id[:8]}] synced {result.get('count', len(channels))} channels")
+    return result
 
 
 async def save_session(user_id: str, session_string: str, phone: Optional[str]):
@@ -210,7 +213,13 @@ async def sync_channels(rt: UserRuntime):
             "kind": kind,
             "can_post": can_post,
         })
-    await push_channels(rt.user_id, channels)
+    result = await push_channels(rt.user_id, channels)
+    if not result:
+        await post_login_status(
+            rt.user_id,
+            "error",
+            "Channel sync failed. Check the worker API URL and master token.",
+        )
 
 
 async def handle_login(rt: UserRuntime, state: dict):

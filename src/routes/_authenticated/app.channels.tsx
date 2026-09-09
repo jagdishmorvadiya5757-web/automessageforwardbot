@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { listChannels, requestChannelSync, type ChannelRow } from "@/lib/rules.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,15 +16,6 @@ export const Route = createFileRoute("/_authenticated/app/channels")({
   component: ChannelsPage,
 });
 
-type Channel = {
-  id: string;
-  chat_id: string;
-  title: string;
-  username: string | null;
-  kind: string;
-  can_post: boolean;
-};
-
 const KIND_ICON: Record<string, typeof Radio> = {
   channel: Radio,
   group: Users,
@@ -33,31 +25,20 @@ const KIND_ICON: Record<string, typeof Radio> = {
 function ChannelsPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  const listChannelsFn = useServerFn(listChannels);
+  const requestChannelSyncFn = useServerFn(requestChannelSync);
 
   const { data: channels = [], isLoading } = useQuery({
     queryKey: ["channels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("telegram_channels")
-        .select("id, chat_id, title, username, kind, can_post")
-        .order("title", { ascending: true });
-      if (error) throw error;
-      return data as Channel[];
-    },
+    queryFn: (): Promise<ChannelRow[]> => listChannelsFn({}),
   });
 
   const resync = useMutation({
-    mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id;
-      if (!uid) throw new Error("Not signed in");
-      const { error } = await supabase
-        .from("telegram_auth")
-        .update({ pending_action: "sync_channels" })
-        .eq("user_id", uid);
-      if (error) throw error;
+    mutationFn: () => requestChannelSyncFn({}),
+    onSuccess: () => {
+      toast.success("Sync requested — channels will refresh automatically");
+      window.setTimeout(() => qc.invalidateQueries({ queryKey: ["channels"] }), 6000);
     },
-    onSuccess: () => toast.success("Resync requested — refresh in a moment"),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -80,7 +61,6 @@ function ChannelsPage() {
           variant="outline"
           onClick={() => {
             resync.mutate();
-            qc.invalidateQueries({ queryKey: ["channels"] });
           }}
           disabled={resync.isPending}
         >
