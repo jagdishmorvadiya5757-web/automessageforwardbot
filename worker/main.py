@@ -342,15 +342,42 @@ async def refresh_rules(rt: UserRuntime):
 # ---------------------------------------------------------------------------
 # Message filtering / forwarding
 # ---------------------------------------------------------------------------
-def matches_filters(text: str, rule: dict) -> bool:
+def _words(rule: dict, key: str) -> list[str]:
+    raw = rule.get(key) or []
+    out: list[str] = []
+    for item in raw:
+        if item is None:
+            continue
+        word = str(item).strip().lower()
+        if word:
+            out.append(word)
+    return out
+
+
+def filter_reason(text: str, rule: dict) -> Optional[str]:
+    """Returns None when the message passes, else a human reason for the skip log."""
     text_l = (text or "").lower()
-    include = [k.lower() for k in rule.get("include_keywords", [])]
-    exclude = [k.lower() for k in rule.get("exclude_keywords", [])]
-    if include and not any(k in text_l for k in include):
-        return False
-    if exclude and any(k in text_l for k in exclude):
-        return False
-    return True
+    allow = _words(rule, "include_keywords")
+    block = _words(rule, "exclude_keywords")
+    for word in block:
+        if word in text_l:
+            return f"blocked by word '{word}'"
+    if allow and not any(word in text_l for word in allow):
+        return "no allow word matched"
+    return None
+
+
+def matches_filters(text: str, rule: dict) -> bool:
+    return filter_reason(text, rule) is None
+
+
+def message_text(message) -> str:
+    """Full searchable text: body or media caption."""
+    for attr in ("message", "raw_text", "text", "caption"):
+        value = getattr(message, attr, None)
+        if isinstance(value, str) and value:
+            return value
+    return ""
 
 
 def source_keys_for_chat(chat) -> list[str]:

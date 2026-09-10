@@ -241,12 +241,14 @@ function RulesPage() {
               />
 
               <div className="space-y-2">
-                <Label>Include keywords (optional, comma-separated)</Label>
+                <Label>Allow words (optional, comma-separated)</Label>
                 <Input value={form.include_keywords} onChange={(e) => setForm({ ...form, include_keywords: e.target.value })} placeholder="bitcoin, launch" />
+                <p className="text-xs text-muted-foreground">Only messages containing one of these words are forwarded.</p>
               </div>
               <div className="space-y-2">
-                <Label>Exclude keywords (optional, comma-separated)</Label>
+                <Label>Blocking words (optional, comma-separated)</Label>
                 <Input value={form.exclude_keywords} onChange={(e) => setForm({ ...form, exclude_keywords: e.target.value })} placeholder="ad, promo" />
+                <p className="text-xs text-muted-foreground">Messages containing any of these words are never forwarded.</p>
               </div>
               <div className="space-y-2">
                 <Label>Forward limit (optional)</Label>
@@ -390,8 +392,8 @@ function RulesPage() {
                   </div>
                   {(r.include_keywords.length > 0 || r.exclude_keywords.length > 0) && (
                     <p className="text-xs text-muted-foreground">
-                      {r.include_keywords.length > 0 && <>include: {r.include_keywords.join(", ")} </>}
-                      {r.exclude_keywords.length > 0 && <>· exclude: {r.exclude_keywords.join(", ")}</>}
+                      {r.include_keywords.length > 0 && <>allow: {r.include_keywords.join(", ")} </>}
+                      {r.exclude_keywords.length > 0 && <>· blocking: {r.exclude_keywords.join(", ")}</>}
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
