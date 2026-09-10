@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { clearStoredSession, getStoredUser } from "@/lib/direct-session";
 import { getMySubscription } from "@/lib/subscription.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +67,7 @@ function ProfilePage() {
   const [tz, setTz] = useState("UTC");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    setEmail(getStoredUser()?.email ?? null);
     try {
       setTz(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
     } catch {
@@ -83,7 +83,7 @@ function ProfilePage() {
   async function signOut() {
     await qc.cancelQueries();
     qc.clear();
-    await supabase.auth.signOut();
+    clearStoredSession();
     navigate({ to: "/auth", replace: true });
   }
 

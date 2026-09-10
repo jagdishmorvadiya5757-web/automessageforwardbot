@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getStoredUser } from "@/lib/direct-session";
 import { getMySubscription } from "@/lib/subscription.functions";
 import { getTelegramConnectionState } from "@/lib/telegram.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,11 +91,9 @@ function HomePage() {
   const [name, setName] = useState<string>("there");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setAccountId(data.user?.id ?? null);
-      const meta = data.user?.user_metadata as { display_name?: string } | undefined;
-      setName(meta?.display_name || data.user?.email?.split("@")[0] || "there");
-    });
+    const user = getStoredUser();
+    setAccountId(user?.id ?? null);
+    setName(user?.user_metadata?.display_name || user?.email?.split("@")[0] || "there");
   }, []);
 
   const { data: sub } = useQuery({

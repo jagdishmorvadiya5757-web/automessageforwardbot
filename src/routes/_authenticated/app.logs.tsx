@@ -1,17 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { listLogs, type LogRow } from "@/lib/logs.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-type Log = {
-  id: string;
-  rule_id: string | null;
-  source_msg_ref: string | null;
-  status: "forwarded" | "skipped" | "error";
-  detail: string | null;
-  created_at: string;
-};
+type Log = LogRow;
 
 export const Route = createFileRoute("/_authenticated/app/logs")({
   component: LogsPage,
@@ -24,17 +18,10 @@ const statusVariant: Record<Log["status"], "default" | "secondary" | "destructiv
 };
 
 function LogsPage() {
+  const fetchLogs = useServerFn(listLogs);
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["logs"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("forwarding_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data as Log[];
-    },
+    queryFn: () => fetchLogs(),
     refetchInterval: 15000,
   });
 

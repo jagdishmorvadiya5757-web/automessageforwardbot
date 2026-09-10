@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { clearStoredSession } from "@/lib/direct-session";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { amIAdmin } from "@/lib/license.functions";
@@ -63,7 +63,7 @@ function AppLayout() {
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    await supabase.auth.signOut();
+    clearStoredSession();
     navigate({ to: "/auth", replace: true });
   }
 
