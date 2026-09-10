@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { directAdminLogin } from "@/lib/direct-auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +34,10 @@ function AuthPage() {
     setLoading(true);
     try {
       const session = await login({ data: { email, password } });
-      const storageKey = (supabase.auth as unknown as { storageKey?: string }).storageKey;
-      if (!storageKey) throw new Error("Session storage is unavailable in this browser.");
-      window.localStorage.setItem(storageKey, JSON.stringify(session));
+      const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+      const ref = url ? new URL(url).hostname.split(".")[0] : null;
+      if (!ref) throw new Error("Session storage is unavailable in this browser.");
+      window.localStorage.setItem(`sb-${ref}-auth-token`, JSON.stringify(session));
       toast.success("Welcome back!");
       window.location.href = "/app";
     } catch (error) {
