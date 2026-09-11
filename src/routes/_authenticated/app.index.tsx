@@ -120,6 +120,11 @@ function RulesPage() {
         exclude_keywords: splitKw(form.exclude_keywords),
         max_forward_count: parseLimit(form.max_forward_count),
         forward_delay: parseDelay(form.forward_delay),
+        schedule_enabled: form.schedule_enabled,
+        schedule_start: form.schedule_enabled ? form.schedule_start : null,
+        schedule_end: form.schedule_enabled ? form.schedule_end : null,
+        schedule_days: form.schedule_enabled ? form.schedule_days : [],
+        schedule_tz_offset: -new Date().getTimezoneOffset(),
         },
       }),
     onSuccess: () => {
@@ -174,6 +179,10 @@ function RulesPage() {
       exclude_keywords: r.exclude_keywords.join(", "),
       max_forward_count: r.max_forward_count?.toString() ?? "",
       forward_delay: r.forward_delay ? r.forward_delay.toString() : "",
+      schedule_enabled: r.schedule_enabled ?? false,
+      schedule_start: r.schedule_start ?? "09:00",
+      schedule_end: r.schedule_end ?? "18:00",
+      schedule_days: r.schedule_days ?? [],
     });
     setOpen(true);
   }
