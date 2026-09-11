@@ -171,6 +171,11 @@ export type Database = {
           max_forward_count: number | null
           name: string | null
           replacements: Json
+          schedule_days: number[]
+          schedule_enabled: boolean
+          schedule_end: string | null
+          schedule_start: string | null
+          schedule_tz_offset: number
           sender_blacklist: string[]
           sender_whitelist: string[]
           source: string
@@ -199,6 +204,11 @@ export type Database = {
           max_forward_count?: number | null
           name?: string | null
           replacements?: Json
+          schedule_days?: number[]
+          schedule_enabled?: boolean
+          schedule_end?: string | null
+          schedule_start?: string | null
+          schedule_tz_offset?: number
           sender_blacklist?: string[]
           sender_whitelist?: string[]
           source: string
@@ -227,6 +237,11 @@ export type Database = {
           max_forward_count?: number | null
           name?: string | null
           replacements?: Json
+          schedule_days?: number[]
+          schedule_enabled?: boolean
+          schedule_end?: string | null
+          schedule_start?: string | null
+          schedule_tz_offset?: number
           sender_blacklist?: string[]
           sender_whitelist?: string[]
           source?: string
