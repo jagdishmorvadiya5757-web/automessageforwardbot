@@ -72,7 +72,13 @@ const empty = {
   exclude_keywords: "",
   max_forward_count: "",
   forward_delay: "",
+  schedule_enabled: false,
+  schedule_start: "09:00",
+  schedule_end: "18:00",
+  schedule_days: [] as number[],
 };
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function RulesPage() {
   const qc = useQueryClient();
@@ -114,6 +120,11 @@ function RulesPage() {
         exclude_keywords: splitKw(form.exclude_keywords),
         max_forward_count: parseLimit(form.max_forward_count),
         forward_delay: parseDelay(form.forward_delay),
+        schedule_enabled: form.schedule_enabled,
+        schedule_start: form.schedule_enabled ? form.schedule_start : null,
+        schedule_end: form.schedule_enabled ? form.schedule_end : null,
+        schedule_days: form.schedule_enabled ? form.schedule_days : [],
+        schedule_tz_offset: -new Date().getTimezoneOffset(),
         },
       }),
     onSuccess: () => {
@@ -168,6 +179,10 @@ function RulesPage() {
       exclude_keywords: r.exclude_keywords.join(", "),
       max_forward_count: r.max_forward_count?.toString() ?? "",
       forward_delay: r.forward_delay ? r.forward_delay.toString() : "",
+      schedule_enabled: r.schedule_enabled ?? false,
+      schedule_start: r.schedule_start ?? "09:00",
+      schedule_end: r.schedule_end ?? "18:00",
+      schedule_days: r.schedule_days ?? [],
     });
     setOpen(true);
   }
@@ -276,6 +291,77 @@ function RulesPage() {
                   Wait this many seconds after each forward for this rule. Leave empty for no delay.
                 </p>
               </div>
+
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label>Auto start schedule (optional)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Rule turns on and off by itself inside this time window.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.schedule_enabled}
+                    onCheckedChange={(v) => setForm({ ...form, schedule_enabled: v })}
+                  />
+                </div>
+                {form.schedule_enabled && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Start time</Label>
+                        <Input
+                          type="time"
+                          value={form.schedule_start}
+                          onChange={(e) => setForm({ ...form, schedule_start: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">End time</Label>
+                        <Input
+                          type="time"
+                          value={form.schedule_end}
+                          onChange={(e) => setForm({ ...form, schedule_end: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Days (leave empty for daily)</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {DAY_LABELS.map((label, day) => {
+                          const on = form.schedule_days.includes(day);
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  schedule_days: on
+                                    ? f.schedule_days.filter((d) => d !== day)
+                                    : [...f.schedule_days, day].sort((a, b) => a - b),
+                                }))
+                              }
+                              className={cn(
+                                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                                on
+                                  ? "border-transparent bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-accent",
+                              )}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Times use your device time zone. Overnight windows (e.g. 22:00 → 06:00) work too.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
 
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
@@ -405,6 +491,14 @@ function RulesPage() {
                     )}
                     {r.forward_delay > 0 && (
                       <Badge variant="outline">{r.forward_delay}s delay</Badge>
+                    )}
+                    {r.schedule_enabled && r.schedule_start && r.schedule_end && (
+                      <Badge variant="outline">
+                        {r.schedule_start}–{r.schedule_end}
+                        {r.schedule_days?.length
+                          ? ` · ${r.schedule_days.map((d) => DAY_LABELS[d]).join(" ")}`
+                          : " · daily"}
+                      </Badge>
                     )}
 
                   </div>

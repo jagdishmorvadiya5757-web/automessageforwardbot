@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -27,7 +28,7 @@ API_BASE_URL = os.environ["API_BASE_URL"].rstrip("/")
 WORKER_TOKEN = os.environ["WORKER_TOKEN"]  # this is now the MASTER token
 TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
-POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
+POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "10"))
 LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
 USERS_POLL_INTERVAL = int(os.environ.get("USERS_POLL_INTERVAL", "5"))
 IDLE_POLL_INTERVAL = int(os.environ.get("IDLE_POLL_INTERVAL", "30"))
@@ -37,7 +38,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-09-09-multiuser-v13"
+WORKER_VERSION = "2026-09-11-multiuser-v14"
 
 http = httpx.AsyncClient(timeout=30)
 
@@ -371,6 +372,47 @@ def matches_filters(text: str, rule: dict) -> bool:
     return filter_reason(text, rule) is None
 
 
+def _hhmm(value) -> Optional[int]:
+    """'HH:MM' -> minutes since midnight."""
+    if not value:
+        return None
+    try:
+        hh, mm = str(value).strip().split(":")[:2]
+        return int(hh) * 60 + int(mm)
+    except Exception:
+        return None
+
+
+def schedule_reason(rule: dict) -> Optional[str]:
+    """None when the rule may run right now, else why it is outside its schedule."""
+    if not rule.get("schedule_enabled"):
+        return None
+    start = _hhmm(rule.get("schedule_start"))
+    end = _hhmm(rule.get("schedule_end"))
+    if start is None or end is None or start == end:
+        return None
+
+    offset = int(rule.get("schedule_tz_offset") or 0)
+    local = datetime.now(timezone.utc) + timedelta(minutes=offset)
+    minutes = local.hour * 60 + local.minute
+    # python weekday(): Mon=0..Sun=6 -> convert to Sun=0..Sat=6
+    weekday = (local.weekday() + 1) % 7
+
+    if start < end:
+        inside = start <= minutes < end
+        day_of_window = weekday
+    else:  # overnight window, e.g. 22:00 -> 06:00
+        inside = minutes >= start or minutes < end
+        day_of_window = weekday if minutes >= start else (weekday - 1) % 7
+
+    days = [int(d) for d in (rule.get("schedule_days") or []) if str(d).strip() != ""]
+    if days and day_of_window not in days:
+        return "outside scheduled days"
+    if not inside:
+        return "outside scheduled hours"
+    return None
+
+
 def message_text(message) -> str:
     """Full searchable text: body or media caption."""
     for attr in ("message", "raw_text", "text", "caption"):
@@ -475,9 +517,16 @@ def make_message_handler(rt: UserRuntime):
             return
 
         for rule in matched:
-            text = event.message.message or ""
-            if not matches_filters(text, rule):
-                await post_log(rt.user_id, rule["id"], "skipped", "filtered by keywords", str(event.message.id))
+            text = message_text(event.message)
+
+            window = schedule_reason(rule)
+            if window:
+                await post_log(rt.user_id, rule["id"], "skipped", window, str(event.message.id))
+                continue
+
+            reason = filter_reason(text, rule)
+            if reason:
+                await post_log(rt.user_id, rule["id"], "skipped", reason, str(event.message.id))
                 continue
 
             slot = await reserve_forwarding_slot(rt.user_id, rule["id"])

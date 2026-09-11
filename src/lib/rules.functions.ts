@@ -25,7 +25,15 @@ export type RuleRow = {
   forwarded_count: number;
   max_forward_count: number | null;
   forward_delay: number;
+  schedule_enabled: boolean;
+  schedule_start: string | null;
+  schedule_end: string | null;
+  schedule_days: number[];
+  schedule_tz_offset: number;
 };
+
+const RULE_COLUMNS =
+  "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay, schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset";
 
 export const listChannels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -60,9 +68,7 @@ export const listRules = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("forwarding_rules")
-      .select(
-        "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay",
-      )
+      .select(RULE_COLUMNS)
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -80,6 +86,11 @@ type RuleInput = {
   exclude_keywords: string[];
   max_forward_count: number | null;
   forward_delay: number;
+  schedule_enabled?: boolean;
+  schedule_start?: string | null;
+  schedule_end?: string | null;
+  schedule_days?: number[];
+  schedule_tz_offset?: number;
 };
 
 export const saveRule = createServerFn({ method: "POST" })
@@ -103,6 +114,11 @@ export const saveRule = createServerFn({ method: "POST" })
       exclude_keywords: data.exclude_keywords,
       max_forward_count: data.max_forward_count,
       forward_delay: data.forward_delay,
+      schedule_enabled: data.schedule_enabled ?? false,
+      schedule_start: data.schedule_start || null,
+      schedule_end: data.schedule_end || null,
+      schedule_days: data.schedule_days ?? [],
+      schedule_tz_offset: data.schedule_tz_offset ?? 0,
     };
     if (data.id) {
       const { error } = await supabaseAdmin

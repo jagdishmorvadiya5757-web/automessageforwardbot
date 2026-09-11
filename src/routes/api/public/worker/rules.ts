@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/public/worker/rules")({
         const { data, error } = await supabaseAdmin
           .from("forwarding_rules")
           .select(
-            "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay",
+            "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay, schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset",
           )
           .eq("user_id", auth.userId)
           .eq("enabled", true);
