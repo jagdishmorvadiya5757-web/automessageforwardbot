@@ -114,6 +114,11 @@ export const saveRule = createServerFn({ method: "POST" })
       exclude_keywords: data.exclude_keywords,
       max_forward_count: data.max_forward_count,
       forward_delay: data.forward_delay,
+      schedule_enabled: data.schedule_enabled ?? false,
+      schedule_start: data.schedule_start || null,
+      schedule_end: data.schedule_end || null,
+      schedule_days: data.schedule_days ?? [],
+      schedule_tz_offset: data.schedule_tz_offset ?? 0,
     };
     if (data.id) {
       const { error } = await supabaseAdmin
