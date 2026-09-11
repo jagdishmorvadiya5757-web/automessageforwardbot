@@ -72,7 +72,13 @@ const empty = {
   exclude_keywords: "",
   max_forward_count: "",
   forward_delay: "",
+  schedule_enabled: false,
+  schedule_start: "09:00",
+  schedule_end: "18:00",
+  schedule_days: [] as number[],
 };
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function RulesPage() {
   const qc = useQueryClient();
