@@ -371,6 +371,47 @@ def matches_filters(text: str, rule: dict) -> bool:
     return filter_reason(text, rule) is None
 
 
+def _hhmm(value) -> Optional[int]:
+    """'HH:MM' -> minutes since midnight."""
+    if not value:
+        return None
+    try:
+        hh, mm = str(value).strip().split(":")[:2]
+        return int(hh) * 60 + int(mm)
+    except Exception:
+        return None
+
+
+def schedule_reason(rule: dict) -> Optional[str]:
+    """None when the rule may run right now, else why it is outside its schedule."""
+    if not rule.get("schedule_enabled"):
+        return None
+    start = _hhmm(rule.get("schedule_start"))
+    end = _hhmm(rule.get("schedule_end"))
+    if start is None or end is None or start == end:
+        return None
+
+    offset = int(rule.get("schedule_tz_offset") or 0)
+    local = datetime.now(timezone.utc) + timedelta(minutes=offset)
+    minutes = local.hour * 60 + local.minute
+    # python weekday(): Mon=0..Sun=6 -> convert to Sun=0..Sat=6
+    weekday = (local.weekday() + 1) % 7
+
+    if start < end:
+        inside = start <= minutes < end
+        day_of_window = weekday
+    else:  # overnight window, e.g. 22:00 -> 06:00
+        inside = minutes >= start or minutes < end
+        day_of_window = weekday if minutes >= start else (weekday - 1) % 7
+
+    days = [int(d) for d in (rule.get("schedule_days") or []) if str(d).strip() != ""]
+    if days and day_of_window not in days:
+        return "outside scheduled days"
+    if not inside:
+        return "outside scheduled hours"
+    return None
+
+
 def message_text(message) -> str:
     """Full searchable text: body or media caption."""
     for attr in ("message", "raw_text", "text", "caption"):
