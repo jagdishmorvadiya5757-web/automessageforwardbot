@@ -86,6 +86,11 @@ type RuleInput = {
   exclude_keywords: string[];
   max_forward_count: number | null;
   forward_delay: number;
+  schedule_enabled?: boolean;
+  schedule_start?: string | null;
+  schedule_end?: string | null;
+  schedule_days?: number[];
+  schedule_tz_offset?: number;
 };
 
 export const saveRule = createServerFn({ method: "POST" })
