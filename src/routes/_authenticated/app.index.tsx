@@ -292,6 +292,77 @@ function RulesPage() {
                 </p>
               </div>
 
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label>Auto start schedule (optional)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Rule turns on and off by itself inside this time window.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.schedule_enabled}
+                    onCheckedChange={(v) => setForm({ ...form, schedule_enabled: v })}
+                  />
+                </div>
+                {form.schedule_enabled && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Start time</Label>
+                        <Input
+                          type="time"
+                          value={form.schedule_start}
+                          onChange={(e) => setForm({ ...form, schedule_start: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">End time</Label>
+                        <Input
+                          type="time"
+                          value={form.schedule_end}
+                          onChange={(e) => setForm({ ...form, schedule_end: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Days (leave empty for daily)</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {DAY_LABELS.map((label, day) => {
+                          const on = form.schedule_days.includes(day);
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  schedule_days: on
+                                    ? f.schedule_days.filter((d) => d !== day)
+                                    : [...f.schedule_days, day].sort((a, b) => a - b),
+                                }))
+                              }
+                              className={cn(
+                                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                                on
+                                  ? "border-transparent bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-accent",
+                              )}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Times use your device time zone. Overnight windows (e.g. 22:00 → 06:00) work too.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
                   <Sparkles className="h-4 w-4 shrink-0 text-primary" />
