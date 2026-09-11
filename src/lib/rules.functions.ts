@@ -25,7 +25,15 @@ export type RuleRow = {
   forwarded_count: number;
   max_forward_count: number | null;
   forward_delay: number;
+  schedule_enabled: boolean;
+  schedule_start: string | null;
+  schedule_end: string | null;
+  schedule_days: number[];
+  schedule_tz_offset: number;
 };
+
+const RULE_COLUMNS =
+  "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay, schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset";
 
 export const listChannels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
