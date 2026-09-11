@@ -492,6 +492,14 @@ function RulesPage() {
                     {r.forward_delay > 0 && (
                       <Badge variant="outline">{r.forward_delay}s delay</Badge>
                     )}
+                    {r.schedule_enabled && r.schedule_start && r.schedule_end && (
+                      <Badge variant="outline">
+                        {r.schedule_start}–{r.schedule_end}
+                        {r.schedule_days?.length
+                          ? ` · ${r.schedule_days.map((d) => DAY_LABELS[d]).join(" ")}`
+                          : " · daily"}
+                      </Badge>
+                    )}
 
                   </div>
                 </div>
