@@ -38,7 +38,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-09-11-multiuser-v14"
+WORKER_VERSION = "2026-09-12-multiuser-v15"
 
 http = httpx.AsyncClient(timeout=30)
 
@@ -86,7 +86,8 @@ async def api_get(path: str, user_id: Optional[str] = None) -> Optional[dict]:
     try:
         headers = user_headers(user_id) if user_id else BASE_HEADERS
         r = await http.get(f"{API_BASE_URL}{path}", headers=headers)
-        r.raise_for_status()
+        if not r.is_success:
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:500]}")
         return r.json()
     except Exception as e:
         print(f"[api] GET {path} failed: {e}")
@@ -97,7 +98,8 @@ async def api_post(path: str, user_id: Optional[str], body: dict) -> Optional[di
     try:
         headers = user_headers(user_id) if user_id else BASE_HEADERS
         r = await http.post(f"{API_BASE_URL}{path}", headers=headers, json=body)
-        r.raise_for_status()
+        if not r.is_success:
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:500]}")
         return r.json()
     except Exception as e:
         print(f"[api] POST {path} failed: {e}")
@@ -109,7 +111,8 @@ async def api_delete(path: str, user_id: str) -> Optional[dict]:
         r = await http.request(
             "DELETE", f"{API_BASE_URL}{path}", headers=user_headers(user_id)
         )
-        r.raise_for_status()
+        if not r.is_success:
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:500]}")
         return r.json()
     except Exception as e:
         print(f"[api] DELETE {path} failed: {e}")
@@ -660,11 +663,17 @@ async def heartbeat():
         try:
             any_user = next(iter(users), None)
             headers = user_headers(any_user) if any_user else BASE_HEADERS
-            await http.post(
+            response = await http.post(
                 f"{API_BASE_URL}/api/public/worker/heartbeat",
                 headers=headers,
-                json={},
+                json={
+                    "version": WORKER_VERSION,
+                    "active_clients": len(users),
+                    "queued_messages": sum(rt.forward_queue.qsize() for rt in users.values()),
+                },
             )
+            if not response.is_success:
+                print(f"[heartbeat] HTTP {response.status_code}: {response.text[:500]}")
         except Exception as e:
             print(f"[heartbeat] {e}")
         await asyncio.sleep(60)
