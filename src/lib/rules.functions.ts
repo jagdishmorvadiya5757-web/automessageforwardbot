@@ -155,7 +155,7 @@ export const saveRule = createServerFn({ method: "POST" })
       ...basePayload
     } = payload;
 
-    const write = async (body: Record<string, unknown>) =>
+    const write = async (body: typeof payload | typeof basePayload) =>
       data.id
         ? supabaseAdmin
             .from("forwarding_rules")
