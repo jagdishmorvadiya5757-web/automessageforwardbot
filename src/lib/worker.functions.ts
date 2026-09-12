@@ -38,21 +38,29 @@ export const getWorkerStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: health } = await supabaseAdmin
+      .from("worker_health")
+      .select("last_heartbeat, version, active_clients, queued_messages")
+      .eq("id", 1)
+      .maybeSingle();
     const { data } = await supabaseAdmin
       .from("worker_tokens")
       .select("token_preview, last_heartbeat, created_at")
       .eq("user_id", context.userId)
       .maybeSingle();
 
+    const lastHeartbeat = health?.last_heartbeat ?? data?.last_heartbeat ?? null;
     const online =
-      !!data?.last_heartbeat &&
-      Date.now() - new Date(data.last_heartbeat).getTime() < 120_000;
+      !!lastHeartbeat && Date.now() - new Date(lastHeartbeat).getTime() < 120_000;
 
     return {
       hasToken: !!data,
       preview: data?.token_preview ?? null,
-      lastHeartbeat: data?.last_heartbeat ?? null,
+      lastHeartbeat,
       online,
+      version: health?.version ?? null,
+      activeClients: health?.active_clients ?? 0,
+      queuedMessages: health?.queued_messages ?? 0,
     };
   });
 
