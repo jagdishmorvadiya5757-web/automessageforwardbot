@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/public/worker/rules")({
         const fallback = await query(BASE_RULE_COLUMNS);
         if (fallback.error) return new Response(fallback.error.message, { status: 500 });
         const rules = (fallback.data ?? []).map((rule) => ({
-          ...rule,
+          ...(rule as unknown as Record<string, unknown>),
           schedule_enabled: false,
           schedule_start: null,
           schedule_end: null,
