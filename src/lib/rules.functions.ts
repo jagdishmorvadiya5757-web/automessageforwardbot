@@ -32,8 +32,26 @@ export type RuleRow = {
   schedule_tz_offset: number;
 };
 
-const RULE_COLUMNS =
-  "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay, schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset";
+const BASE_RULE_COLUMNS =
+  "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay";
+
+const SCHEDULE_COLUMNS =
+  "schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset";
+
+const RULE_COLUMNS = `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`;
+
+const isMissingScheduleColumn = (message?: string | null) =>
+  !!message && message.includes("schedule_") && message.includes("does not exist");
+
+const withScheduleDefaults = (rows: any[]): RuleRow[] =>
+  rows.map((r) => ({
+    schedule_enabled: false,
+    schedule_start: null,
+    schedule_end: null,
+    schedule_days: [],
+    schedule_tz_offset: 0,
+    ...r,
+  })) as RuleRow[];
 
 export const listChannels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -71,8 +89,16 @@ export const listRules = createServerFn({ method: "GET" })
       .select(RULE_COLUMNS)
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return (data ?? []) as RuleRow[];
+    if (!error) return withScheduleDefaults(data ?? []);
+    if (!isMissingScheduleColumn(error.message)) throw new Error(error.message);
+
+    const fallback = await supabaseAdmin
+      .from("forwarding_rules")
+      .select(BASE_RULE_COLUMNS)
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false });
+    if (fallback.error) throw new Error(fallback.error.message);
+    return withScheduleDefaults(fallback.data ?? []);
   });
 
 type RuleInput = {
@@ -120,16 +146,29 @@ export const saveRule = createServerFn({ method: "POST" })
       schedule_days: data.schedule_days ?? [],
       schedule_tz_offset: data.schedule_tz_offset ?? 0,
     };
-    if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("forwarding_rules")
-        .update(payload)
-        .eq("id", data.id)
-        .eq("user_id", context.userId);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabaseAdmin.from("forwarding_rules").insert(payload);
-      if (error) throw new Error(error.message);
+    const {
+      schedule_enabled: _a,
+      schedule_start: _b,
+      schedule_end: _c,
+      schedule_days: _d,
+      schedule_tz_offset: _e,
+      ...basePayload
+    } = payload;
+
+    const write = async (body: typeof payload | typeof basePayload) =>
+      data.id
+        ? supabaseAdmin
+            .from("forwarding_rules")
+            .update(body)
+            .eq("id", data.id)
+            .eq("user_id", context.userId)
+        : supabaseAdmin.from("forwarding_rules").insert(body);
+
+    const { error } = await write(payload);
+    if (error) {
+      if (!isMissingScheduleColumn(error.message)) throw new Error(error.message);
+      const retry = await write(basePayload);
+      if (retry.error) throw new Error(retry.error.message);
     }
     return { ok: true };
   });
