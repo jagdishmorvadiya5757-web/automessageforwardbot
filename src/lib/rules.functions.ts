@@ -146,16 +146,29 @@ export const saveRule = createServerFn({ method: "POST" })
       schedule_days: data.schedule_days ?? [],
       schedule_tz_offset: data.schedule_tz_offset ?? 0,
     };
-    if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("forwarding_rules")
-        .update(payload)
-        .eq("id", data.id)
-        .eq("user_id", context.userId);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabaseAdmin.from("forwarding_rules").insert(payload);
-      if (error) throw new Error(error.message);
+    const {
+      schedule_enabled: _a,
+      schedule_start: _b,
+      schedule_end: _c,
+      schedule_days: _d,
+      schedule_tz_offset: _e,
+      ...basePayload
+    } = payload;
+
+    const write = async (body: Record<string, unknown>) =>
+      data.id
+        ? supabaseAdmin
+            .from("forwarding_rules")
+            .update(body)
+            .eq("id", data.id)
+            .eq("user_id", context.userId)
+        : supabaseAdmin.from("forwarding_rules").insert(body);
+
+    const { error } = await write(payload);
+    if (error) {
+      if (!isMissingScheduleColumn(error.message)) throw new Error(error.message);
+      const retry = await write(basePayload);
+      if (retry.error) throw new Error(retry.error.message);
     }
     return { ok: true };
   });
