@@ -30,6 +30,12 @@ export type RuleRow = {
   schedule_end: string | null;
   schedule_days: number[];
   schedule_tz_offset: number;
+  only_video_with_caption: boolean;
+  backfill_from: string | null;
+  backfill_to: string | null;
+  backfill_status: string;
+  backfill_done_count: number;
+  backfill_detail: string | null;
 };
 
 const BASE_RULE_COLUMNS =
@@ -38,20 +44,35 @@ const BASE_RULE_COLUMNS =
 const SCHEDULE_COLUMNS =
   "schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset";
 
-const RULE_COLUMNS = `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`;
+const BACKFILL_COLUMNS =
+  "only_video_with_caption, backfill_from, backfill_to, backfill_status, backfill_done_count, backfill_detail";
 
-const isMissingScheduleColumn = (message?: string | null) =>
-  !!message && message.includes("schedule_") && message.includes("does not exist");
+/** Column sets tried in order — Oracle DBs missing a migration fall back gracefully. */
+const COLUMN_SETS = [
+  `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}, ${BACKFILL_COLUMNS}`,
+  `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`,
+  BASE_RULE_COLUMNS,
+];
 
-const withScheduleDefaults = (rows: any[]): RuleRow[] =>
-  rows.map((r) => ({
-    schedule_enabled: false,
-    schedule_start: null,
-    schedule_end: null,
-    schedule_days: [],
-    schedule_tz_offset: 0,
-    ...r,
-  })) as RuleRow[];
+const isMissingColumn = (message?: string | null) =>
+  !!message && message.includes("does not exist");
+
+const DEFAULTS = {
+  schedule_enabled: false,
+  schedule_start: null,
+  schedule_end: null,
+  schedule_days: [],
+  schedule_tz_offset: 0,
+  only_video_with_caption: false,
+  backfill_from: null,
+  backfill_to: null,
+  backfill_status: "idle",
+  backfill_done_count: 0,
+  backfill_detail: null,
+};
+
+const withDefaults = (rows: any[]): RuleRow[] =>
+  rows.map((r) => ({ ...DEFAULTS, ...r })) as RuleRow[];
 
 export const listChannels = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -84,21 +105,18 @@ export const listRules = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RuleRow[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("forwarding_rules")
-      .select(RULE_COLUMNS)
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false });
-    if (!error) return withScheduleDefaults(data ?? []);
-    if (!isMissingScheduleColumn(error.message)) throw new Error(error.message);
-
-    const fallback = await supabaseAdmin
-      .from("forwarding_rules")
-      .select(BASE_RULE_COLUMNS)
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false });
-    if (fallback.error) throw new Error(fallback.error.message);
-    return withScheduleDefaults(fallback.data ?? []);
+    let lastError: string | null = null;
+    for (const columns of COLUMN_SETS) {
+      const { data, error } = await supabaseAdmin
+        .from("forwarding_rules")
+        .select(columns)
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false });
+      if (!error) return withDefaults(data ?? []);
+      lastError = error.message;
+      if (!isMissingColumn(error.message)) break;
+    }
+    throw new Error(lastError ?? "Failed to load rules");
   });
 
 type RuleInput = {
@@ -117,6 +135,10 @@ type RuleInput = {
   schedule_end?: string | null;
   schedule_days?: number[];
   schedule_tz_offset?: number;
+  only_video_with_caption?: boolean;
+  backfill_from?: string | null;
+  backfill_to?: string | null;
+  run_backfill?: boolean;
 };
 
 export const saveRule = createServerFn({ method: "POST" })
@@ -125,11 +147,15 @@ export const saveRule = createServerFn({ method: "POST" })
     const source = input.source.trim();
     const destination = input.destination.trim();
     if (!source || !destination) throw new Error("Source and destination are required.");
+    if (input.run_backfill && !input.backfill_from) {
+      throw new Error("Pick a start date for the history backfill.");
+    }
     return { ...input, source, destination };
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const payload = {
+
+    const base = {
       user_id: context.userId,
       name: data.name || null,
       source: data.source,
@@ -140,36 +166,84 @@ export const saveRule = createServerFn({ method: "POST" })
       exclude_keywords: data.exclude_keywords,
       max_forward_count: data.max_forward_count,
       forward_delay: data.forward_delay,
+    };
+    const schedule = {
       schedule_enabled: data.schedule_enabled ?? false,
       schedule_start: data.schedule_start || null,
       schedule_end: data.schedule_end || null,
       schedule_days: data.schedule_days ?? [],
       schedule_tz_offset: data.schedule_tz_offset ?? 0,
     };
-    const {
-      schedule_enabled: _a,
-      schedule_start: _b,
-      schedule_end: _c,
-      schedule_days: _d,
-      schedule_tz_offset: _e,
-      ...basePayload
-    } = payload;
-
-    const write = async (body: typeof payload | typeof basePayload) =>
-      data.id
-        ? supabaseAdmin
-            .from("forwarding_rules")
-            .update(body)
-            .eq("id", data.id)
-            .eq("user_id", context.userId)
-        : supabaseAdmin.from("forwarding_rules").insert(body);
-
-    const { error } = await write(payload);
-    if (error) {
-      if (!isMissingScheduleColumn(error.message)) throw new Error(error.message);
-      const retry = await write(basePayload);
-      if (retry.error) throw new Error(retry.error.message);
+    const backfill: Record<string, unknown> = {
+      only_video_with_caption: data.only_video_with_caption ?? false,
+      backfill_from: data.backfill_from || null,
+      backfill_to: data.backfill_to || null,
+    };
+    if (data.run_backfill) {
+      backfill.backfill_status = "pending";
+      backfill.backfill_done_count = 0;
+      backfill.backfill_detail = null;
     }
+
+    const bodies = [
+      { ...base, ...schedule, ...backfill },
+      { ...base, ...schedule },
+      base,
+    ];
+
+    const table = () => supabaseAdmin.from("forwarding_rules") as any;
+    const write = (body: Record<string, unknown>) =>
+      data.id
+        ? table().update(body).eq("id", data.id).eq("user_id", context.userId)
+        : table().insert(body);
+
+
+    let lastError: string | null = null;
+    for (const body of bodies) {
+      const { error } = await write(body);
+      if (!error) return { ok: true };
+      lastError = error.message;
+      if (!isMissingColumn(error.message)) break;
+    }
+    throw new Error(lastError ?? "Failed to save rule");
+  });
+
+/** Start (or restart) the history backfill for one rule. */
+export const startBackfill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; from: string; to?: string | null }) => {
+    if (!input.from) throw new Error("Pick a start date.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin.from("forwarding_rules") as any)
+      .update({
+        backfill_from: data.from,
+        backfill_to: data.to || null,
+        backfill_status: "pending",
+        backfill_done_count: 0,
+        backfill_detail: null,
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Stop a running/pending backfill. */
+export const stopBackfill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin.from("forwarding_rules") as any)
+      .update({ backfill_status: "cancelled" })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 

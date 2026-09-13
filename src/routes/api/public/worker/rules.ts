@@ -7,8 +7,30 @@ const BASE_RULE_COLUMNS =
 const SCHEDULE_COLUMNS =
   "schedule_enabled, schedule_start, schedule_end, schedule_days, schedule_tz_offset";
 
-const isMissingScheduleColumn = (message?: string | null) =>
-  !!message && message.includes("schedule_") && message.includes("does not exist");
+const BACKFILL_COLUMNS =
+  "only_video_with_caption, backfill_from, backfill_to, backfill_status, backfill_done_count";
+
+const COLUMN_SETS = [
+  `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}, ${BACKFILL_COLUMNS}`,
+  `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`,
+  BASE_RULE_COLUMNS,
+];
+
+const DEFAULTS = {
+  schedule_enabled: false,
+  schedule_start: null,
+  schedule_end: null,
+  schedule_days: [] as number[],
+  schedule_tz_offset: 0,
+  only_video_with_caption: false,
+  backfill_from: null,
+  backfill_to: null,
+  backfill_status: "idle",
+  backfill_done_count: 0,
+};
+
+const isMissingColumn = (message?: string | null) =>
+  !!message && message.includes("does not exist");
 
 // GET /api/public/worker/rules — external worker pulls enabled rules for its user.
 export const Route = createFileRoute("/api/public/worker/rules")({
@@ -19,29 +41,24 @@ export const Route = createFileRoute("/api/public/worker/rules")({
         if (!auth) return new Response("Unauthorized", { status: 401 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const query = (columns: string) => supabaseAdmin
-          .from("forwarding_rules")
-          .select(columns)
-          .eq("user_id", auth.userId)
-          .eq("enabled", true);
-
-        const { data, error } = await query(`${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`);
-        if (!error) return Response.json({ rules: data ?? [] });
-        if (!isMissingScheduleColumn(error.message)) {
-          return new Response(error.message, { status: 500 });
+        let lastError = "Failed to load rules";
+        for (const columns of COLUMN_SETS) {
+          const { data, error } = await supabaseAdmin
+            .from("forwarding_rules")
+            .select(columns)
+            .eq("user_id", auth.userId)
+            .eq("enabled", true);
+          if (!error) {
+            const rules = (data ?? []).map((rule) => ({
+              ...DEFAULTS,
+              ...(rule as unknown as Record<string, unknown>),
+            }));
+            return Response.json({ rules });
+          }
+          lastError = error.message;
+          if (!isMissingColumn(error.message)) break;
         }
-
-        const fallback = await query(BASE_RULE_COLUMNS);
-        if (fallback.error) return new Response(fallback.error.message, { status: 500 });
-        const rules = (fallback.data ?? []).map((rule) => ({
-          ...(rule as unknown as Record<string, unknown>),
-          schedule_enabled: false,
-          schedule_start: null,
-          schedule_end: null,
-          schedule_days: [],
-          schedule_tz_offset: 0,
-        }));
-        return Response.json({ rules });
+        return new Response(lastError, { status: 500 });
       },
     },
   },

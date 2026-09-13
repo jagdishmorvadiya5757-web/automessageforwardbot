@@ -59,12 +59,16 @@ class UserRuntime:
         self.user_id = user_id
         self.client: Optional[TelegramClient] = None
         self.rules_by_source: dict[str, list[dict]] = {}
+        self.rules: list[dict] = []
+        self.backfill_state: dict[str, str] = {}   # rule_id -> status from DB
+        self.backfill_running: set[str] = set()
         self.my_id: Optional[int] = None
         self.forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
         self.login_ctx: dict = {"phone": None, "phone_code_hash": None}
         self.forwarding_started = False
         self.pending = True  # supervisor flips this from the /users payload
         self._tasks: list[asyncio.Task] = []
+
 
     async def close(self):
         for t in self._tasks:
@@ -340,7 +344,24 @@ async def refresh_rules(rt: UserRuntime):
             key = normalize(rule["source"])
             grouped.setdefault(key, []).append(rule)
         rt.rules_by_source = grouped
+        rt.rules = rules
+        rt.backfill_state = {
+            str(rule["id"]): str(rule.get("backfill_status") or "idle") for rule in rules
+        }
+
+        # Kick off any rule whose history backfill was requested from the dashboard.
+        for rule in rules:
+            rule_id = str(rule["id"])
+            if (
+                rule.get("backfill_status") == "pending"
+                and rule.get("backfill_from")
+                and rule_id not in rt.backfill_running
+            ):
+                rt.backfill_running.add(rule_id)
+                rt._tasks.append(asyncio.create_task(run_backfill(rt, dict(rule))))
+
         await asyncio.sleep(POLL_INTERVAL)
+
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +394,29 @@ def filter_reason(text: str, rule: dict) -> Optional[str]:
 
 def matches_filters(text: str, rule: dict) -> bool:
     return filter_reason(text, rule) is None
+
+
+def is_video_message(message) -> bool:
+    """True when the message carries a real video (not a photo/gif/document)."""
+    if message is None:
+        return False
+    if getattr(message, "video", None):
+        return True
+    document = getattr(message, "document", None)
+    mime = str(getattr(document, "mime_type", "") or "")
+    return mime.startswith("video/")
+
+
+def media_reason(message, rule: dict) -> Optional[str]:
+    """None when the message passes the media filters, else the skip reason."""
+    if not rule.get("only_video_with_caption"):
+        return None
+    if not is_video_message(message):
+        return "not a video"
+    if not (message_text(message) or "").strip():
+        return "video has no caption"
+    return None
+
 
 
 def _hhmm(value) -> Optional[int]:
