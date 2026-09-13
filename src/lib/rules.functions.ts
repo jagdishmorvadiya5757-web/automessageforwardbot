@@ -191,14 +191,12 @@ export const saveRule = createServerFn({ method: "POST" })
       base,
     ];
 
+    const table = () => supabaseAdmin.from("forwarding_rules") as any;
     const write = (body: Record<string, unknown>) =>
       data.id
-        ? supabaseAdmin
-            .from("forwarding_rules")
-            .update(body)
-            .eq("id", data.id)
-            .eq("user_id", context.userId)
-        : supabaseAdmin.from("forwarding_rules").insert(body);
+        ? table().update(body).eq("id", data.id).eq("user_id", context.userId)
+        : table().insert(body);
+
 
     let lastError: string | null = null;
     for (const body of bodies) {
