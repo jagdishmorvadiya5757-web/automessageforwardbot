@@ -344,7 +344,24 @@ async def refresh_rules(rt: UserRuntime):
             key = normalize(rule["source"])
             grouped.setdefault(key, []).append(rule)
         rt.rules_by_source = grouped
+        rt.rules = rules
+        rt.backfill_state = {
+            str(rule["id"]): str(rule.get("backfill_status") or "idle") for rule in rules
+        }
+
+        # Kick off any rule whose history backfill was requested from the dashboard.
+        for rule in rules:
+            rule_id = str(rule["id"])
+            if (
+                rule.get("backfill_status") == "pending"
+                and rule.get("backfill_from")
+                and rule_id not in rt.backfill_running
+            ):
+                rt.backfill_running.add(rule_id)
+                rt._tasks.append(asyncio.create_task(run_backfill(rt, dict(rule))))
+
         await asyncio.sleep(POLL_INTERVAL)
+
 
 
 # ---------------------------------------------------------------------------
