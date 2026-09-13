@@ -59,12 +59,16 @@ class UserRuntime:
         self.user_id = user_id
         self.client: Optional[TelegramClient] = None
         self.rules_by_source: dict[str, list[dict]] = {}
+        self.rules: list[dict] = []
+        self.backfill_state: dict[str, str] = {}   # rule_id -> status from DB
+        self.backfill_running: set[str] = set()
         self.my_id: Optional[int] = None
         self.forward_queue: "asyncio.Queue[dict]" = asyncio.Queue()
         self.login_ctx: dict = {"phone": None, "phone_code_hash": None}
         self.forwarding_started = False
         self.pending = True  # supervisor flips this from the /users payload
         self._tasks: list[asyncio.Task] = []
+
 
     async def close(self):
         for t in self._tasks:
