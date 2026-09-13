@@ -217,8 +217,7 @@ export const startBackfill = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("forwarding_rules")
+    const { error } = await (supabaseAdmin.from("forwarding_rules") as any)
       .update({
         backfill_from: data.from,
         backfill_to: data.to || null,
@@ -228,6 +227,7 @@ export const startBackfill = createServerFn({ method: "POST" })
       })
       .eq("id", data.id)
       .eq("user_id", context.userId);
+
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -238,11 +238,11 @@ export const stopBackfill = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("forwarding_rules")
+    const { error } = await (supabaseAdmin.from("forwarding_rules") as any)
       .update({ backfill_status: "cancelled" })
       .eq("id", data.id)
       .eq("user_id", context.userId);
+
     if (error) throw new Error(error.message);
     return { ok: true };
   });
