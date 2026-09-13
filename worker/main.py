@@ -396,6 +396,29 @@ def matches_filters(text: str, rule: dict) -> bool:
     return filter_reason(text, rule) is None
 
 
+def is_video_message(message) -> bool:
+    """True when the message carries a real video (not a photo/gif/document)."""
+    if message is None:
+        return False
+    if getattr(message, "video", None):
+        return True
+    document = getattr(message, "document", None)
+    mime = str(getattr(document, "mime_type", "") or "")
+    return mime.startswith("video/")
+
+
+def media_reason(message, rule: dict) -> Optional[str]:
+    """None when the message passes the media filters, else the skip reason."""
+    if not rule.get("only_video_with_caption"):
+        return None
+    if not is_video_message(message):
+        return "not a video"
+    if not (message_text(message) or "").strip():
+        return "video has no caption"
+    return None
+
+
+
 def _hhmm(value) -> Optional[int]:
     """'HH:MM' -> minutes since midnight."""
     if not value:
