@@ -377,6 +377,58 @@ function RulesPage() {
                 )}
               </div>
 
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label>Only video with caption</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Forward only posts that are a video and have a caption.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.only_video_with_caption}
+                    onCheckedChange={(v) => setForm({ ...form, only_video_with_caption: v })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label>Forward old posts (optional)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Copy the source history from a date, oldest first.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.run_backfill}
+                    onCheckedChange={(v) => setForm({ ...form, run_backfill: v })}
+                  />
+                </div>
+                {form.run_backfill && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">From date</Label>
+                      <Input
+                        type="date"
+                        value={form.backfill_from}
+                        onChange={(e) => setForm({ ...form, backfill_from: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">To date (empty = today)</Label>
+                      <Input
+                        type="date"
+                        value={form.backfill_to}
+                        onChange={(e) => setForm({ ...form, backfill_to: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+
 
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
