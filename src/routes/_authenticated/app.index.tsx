@@ -9,6 +9,8 @@ import {
   resetRuleCounter,
   saveRule,
   setRuleEnabled,
+  stopBackfill,
+
   type ChannelRow,
   type EndpointType,
   type RuleRow,
