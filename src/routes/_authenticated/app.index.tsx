@@ -76,7 +76,12 @@ const empty = {
   schedule_start: "09:00",
   schedule_end: "18:00",
   schedule_days: [] as number[],
+  only_video_with_caption: false,
+  backfill_from: "",
+  backfill_to: "",
+  run_backfill: false,
 };
+
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
