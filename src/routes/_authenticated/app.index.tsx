@@ -130,10 +130,15 @@ function RulesPage() {
         schedule_end: form.schedule_enabled ? form.schedule_end : null,
         schedule_days: form.schedule_enabled ? form.schedule_days : [],
         schedule_tz_offset: -new Date().getTimezoneOffset(),
+        only_video_with_caption: form.only_video_with_caption,
+        backfill_from: form.backfill_from || null,
+        backfill_to: form.backfill_to || null,
+        run_backfill: form.run_backfill && !!form.backfill_from,
         },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
+
       setOpen(false);
       setEditing(null);
       setForm(empty);
