@@ -38,7 +38,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-09-12-multiuser-v15"
+WORKER_VERSION = "2026-09-14-multiuser-v16"
 
 http = httpx.AsyncClient(timeout=30)
 
