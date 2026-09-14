@@ -567,6 +567,28 @@ function RulesPage() {
                           : " · daily"}
                       </Badge>
                     )}
+                    {r.only_video_with_caption && (
+                      <Badge variant="outline">video + caption only</Badge>
+                    )}
+                    {r.backfill_status && r.backfill_status !== "idle" && (
+                      <Badge
+                        variant={r.backfill_status === "error" ? "destructive" : "outline"}
+                        title={r.backfill_detail ?? undefined}
+                      >
+                        history: {r.backfill_status} · {r.backfill_done_count}
+                      </Badge>
+                    )}
+                    {(r.backfill_status === "pending" || r.backfill_status === "running") && (
+                      <button
+                        type="button"
+                        onClick={() => stopBackfillFn({ data: { id: r.id } }).then(() => qc.invalidateQueries({ queryKey: ["rules"] }))}
+                        className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-accent"
+                      >
+                        Stop history
+                      </button>
+                    )}
+
+
 
                   </div>
                 </div>
