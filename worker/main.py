@@ -714,10 +714,12 @@ def make_message_handler(rt: UserRuntime):
                 await post_log(rt.user_id, rule["id"], "skipped", window, str(event.message.id))
                 continue
 
-            reason = filter_reason(text, rule)
+            reason = filter_reason(text, rule) or media_reason(event.message, rule)
             if reason:
                 await post_log(rt.user_id, rule["id"], "skipped", reason, str(event.message.id))
                 continue
+
+
 
             slot = await reserve_forwarding_slot(rt.user_id, rule["id"])
             if not slot.get("allowed"):
