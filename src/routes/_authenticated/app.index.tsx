@@ -188,7 +188,12 @@ function RulesPage() {
       schedule_start: r.schedule_start ?? "09:00",
       schedule_end: r.schedule_end ?? "18:00",
       schedule_days: r.schedule_days ?? [],
+      only_video_with_caption: r.only_video_with_caption ?? false,
+      backfill_from: r.backfill_from ?? "",
+      backfill_to: r.backfill_to ?? "",
+      run_backfill: false,
     });
+
     setOpen(true);
   }
 
