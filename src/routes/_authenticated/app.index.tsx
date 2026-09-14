@@ -9,6 +9,8 @@ import {
   resetRuleCounter,
   saveRule,
   setRuleEnabled,
+  stopBackfill,
+
   type ChannelRow,
   type EndpointType,
   type RuleRow,
@@ -76,7 +78,12 @@ const empty = {
   schedule_start: "09:00",
   schedule_end: "18:00",
   schedule_days: [] as number[],
+  only_video_with_caption: false,
+  backfill_from: "",
+  backfill_to: "",
+  run_backfill: false,
 };
+
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -88,6 +95,8 @@ function RulesPage() {
   const setRuleEnabledFn = useServerFn(setRuleEnabled);
   const deleteRuleFn = useServerFn(deleteRule);
   const resetRuleCounterFn = useServerFn(resetRuleCounter);
+  const stopBackfillFn = useServerFn(stopBackfill);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [form, setForm] = useState(empty);
@@ -125,10 +134,15 @@ function RulesPage() {
         schedule_end: form.schedule_enabled ? form.schedule_end : null,
         schedule_days: form.schedule_enabled ? form.schedule_days : [],
         schedule_tz_offset: -new Date().getTimezoneOffset(),
+        only_video_with_caption: form.only_video_with_caption,
+        backfill_from: form.backfill_from || null,
+        backfill_to: form.backfill_to || null,
+        run_backfill: form.run_backfill && !!form.backfill_from,
         },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
+
       setOpen(false);
       setEditing(null);
       setForm(empty);
@@ -183,7 +197,12 @@ function RulesPage() {
       schedule_start: r.schedule_start ?? "09:00",
       schedule_end: r.schedule_end ?? "18:00",
       schedule_days: r.schedule_days ?? [],
+      only_video_with_caption: r.only_video_with_caption ?? false,
+      backfill_from: r.backfill_from ?? "",
+      backfill_to: r.backfill_to ?? "",
+      run_backfill: false,
     });
+
     setOpen(true);
   }
 
@@ -362,6 +381,58 @@ function RulesPage() {
                 )}
               </div>
 
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label>Only video with caption</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Forward only posts that are a video and have a caption.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.only_video_with_caption}
+                    onCheckedChange={(v) => setForm({ ...form, only_video_with_caption: v })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label>Forward old posts (optional)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Copy the source history from a date, oldest first.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.run_backfill}
+                    onCheckedChange={(v) => setForm({ ...form, run_backfill: v })}
+                  />
+                </div>
+                {form.run_backfill && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">From date</Label>
+                      <Input
+                        type="date"
+                        value={form.backfill_from}
+                        onChange={(e) => setForm({ ...form, backfill_from: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">To date (empty = today)</Label>
+                      <Input
+                        type="date"
+                        value={form.backfill_to}
+                        onChange={(e) => setForm({ ...form, backfill_to: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+
 
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
@@ -500,6 +571,28 @@ function RulesPage() {
                           : " · daily"}
                       </Badge>
                     )}
+                    {r.only_video_with_caption && (
+                      <Badge variant="outline">video + caption only</Badge>
+                    )}
+                    {r.backfill_status && r.backfill_status !== "idle" && (
+                      <Badge
+                        variant={r.backfill_status === "error" ? "destructive" : "outline"}
+                        title={r.backfill_detail ?? undefined}
+                      >
+                        history: {r.backfill_status} · {r.backfill_done_count}
+                      </Badge>
+                    )}
+                    {(r.backfill_status === "pending" || r.backfill_status === "running") && (
+                      <button
+                        type="button"
+                        onClick={() => stopBackfillFn({ data: { id: r.id } }).then(() => qc.invalidateQueries({ queryKey: ["rules"] }))}
+                        className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-accent"
+                      >
+                        Stop history
+                      </button>
+                    )}
+
+
 
                   </div>
                 </div>
