@@ -95,6 +95,8 @@ function RulesPage() {
   const setRuleEnabledFn = useServerFn(setRuleEnabled);
   const deleteRuleFn = useServerFn(deleteRule);
   const resetRuleCounterFn = useServerFn(resetRuleCounter);
+  const stopBackfillFn = useServerFn(stopBackfill);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [form, setForm] = useState(empty);
