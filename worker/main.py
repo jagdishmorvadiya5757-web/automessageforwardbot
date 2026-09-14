@@ -335,7 +335,150 @@ async def control_loop_for(rt: UserRuntime):
         await asyncio.sleep(LOGIN_POLL_INTERVAL if rt.pending else IDLE_POLL_INTERVAL)
 
 
+async def report_backfill(
+    user_id: str,
+    rule_id: str,
+    status: Optional[str] = None,
+    done: Optional[int] = None,
+    detail: Optional[str] = None,
+):
+    body: dict = {"rule_id": rule_id}
+    if status is not None:
+        body["status"] = status
+    if done is not None:
+        body["done_count"] = done
+    if detail is not None:
+        body["detail"] = detail
+    await api_post("/api/public/worker/backfill", user_id, body)
+
+
+def entity_arg(value: str):
+    raw = str(value).strip()
+    if raw.startswith("@"):
+        return raw
+    try:
+        return int(raw)
+    except ValueError:
+        return raw
+
+
+def parse_day(value, end_of_day: bool = False) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        base = datetime.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+    base = base.replace(tzinfo=timezone.utc)
+    return base + timedelta(days=1) if end_of_day else base
+
+
+async def run_backfill(rt: UserRuntime, rule: dict):
+    """Copy the source channel's history (date range, oldest first) to the destination."""
+    rule_id = str(rule["id"])
+    user_id = rt.user_id
+    done = 0
+    try:
+        start = parse_day(rule.get("backfill_from"))
+        if start is None:
+            await report_backfill(user_id, rule_id, status="error", detail="bad start date")
+            return
+        end = parse_day(rule.get("backfill_to"), end_of_day=True) or (
+            datetime.now(timezone.utc) + timedelta(days=1)
+        )
+
+        await report_backfill(user_id, rule_id, status="running", done=0, detail="starting")
+
+        source = await rt.client.get_entity(entity_arg(rule["source"]))
+        dest = await rt.client.get_entity(entity_arg(rule["destination"]))
+
+        try:
+            delay = float(rule.get("forward_delay") or 0)
+        except (TypeError, ValueError):
+            delay = 0.0
+        if delay <= 0:
+            delay = FORWARD_DELAY
+
+        scanned = 0
+        async for message in rt.client.iter_messages(
+            source, offset_date=start, reverse=True
+        ):
+            if rt.backfill_state.get(rule_id) == "cancelled":
+                await report_backfill(
+                    user_id, rule_id, status="cancelled", done=done, detail="stopped"
+                )
+                return
+
+            when = getattr(message, "date", None)
+            if when is None:
+                continue
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=timezone.utc)
+            if when < start:
+                continue
+            if when >= end:
+                break
+
+            scanned += 1
+            text = message_text(message)
+            if filter_reason(text, rule) or media_reason(message, rule):
+                if scanned % 25 == 0:
+                    await report_backfill(user_id, rule_id, done=done)
+                continue
+
+            slot = await reserve_forwarding_slot(user_id, rule_id)
+            if not slot.get("allowed"):
+                await report_backfill(
+                    user_id, rule_id, status="done", done=done, detail="limit reached"
+                )
+                return
+
+            sent = False
+            for _attempt in range(5):
+                try:
+                    media = getattr(message, "media", None)
+                    if media is not None:
+                        await rt.client.send_file(dest, file=media, caption=text or "")
+                    else:
+                        if not (text or "").strip():
+                            break
+                        await rt.client.send_message(dest, text)
+                    sent = True
+                    break
+                except FloodWaitError as e:
+                    wait = float(getattr(e, "seconds", 0)) + FLOOD_WAIT_EXTRA
+                    await report_backfill(
+                        user_id, rule_id, done=done, detail=f"flood wait {int(wait)}s"
+                    )
+                    await asyncio.sleep(wait)
+                except Exception as e:
+                    await release_forwarding_slot(user_id, rule_id)
+                    await post_log(user_id, rule_id, "error", f"history: {e}", str(message.id))
+                    break
+
+            if sent:
+                done += 1
+                await post_log(
+                    user_id, rule_id, "forwarded", "history copy", str(message.id)
+                )
+                if done % 5 == 0:
+                    await report_backfill(user_id, rule_id, done=done)
+            else:
+                await release_forwarding_slot(user_id, rule_id)
+
+            await asyncio.sleep(delay if delay > 0 else 1.0)
+
+        await report_backfill(
+            user_id, rule_id, status="done", done=done, detail=f"{done} posts copied"
+        )
+    except Exception as e:
+        await report_backfill(user_id, rule_id, status="error", done=done, detail=str(e))
+    finally:
+        rt.backfill_running.discard(rule_id)
+
+
 async def refresh_rules(rt: UserRuntime):
+
     while True:
         data = await api_get("/api/public/worker/rules", rt.user_id) or {}
         rules = data.get("rules", [])
