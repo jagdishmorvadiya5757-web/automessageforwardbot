@@ -23,6 +23,7 @@ import { Route as AuthenticatedAppPlanRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
 import { Route as AuthenticatedAppLoginRouteImport } from './routes/_authenticated/app.login'
 import { Route as AuthenticatedAppHomeRouteImport } from './routes/_authenticated/app.home'
+import { Route as AuthenticatedAppHealthRouteImport } from './routes/_authenticated/app.health'
 import { Route as AuthenticatedAppChannelsRouteImport } from './routes/_authenticated/app.channels'
 import { Route as AuthenticatedAppAdminRouteImport } from './routes/_authenticated/app.admin'
 import { Route as ApiPublicWorkerUsersRouteImport } from './routes/api/public/worker/users'
@@ -106,6 +107,11 @@ const AuthenticatedAppHomeRoute = AuthenticatedAppHomeRouteImport.update({
   path: '/home',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppHealthRoute = AuthenticatedAppHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppChannelsRoute =
   AuthenticatedAppChannelsRouteImport.update({
     id: '/channels',
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/admin': typeof AuthenticatedAppAdminRoute
   '/app/channels': typeof AuthenticatedAppChannelsRoute
+  '/app/health': typeof AuthenticatedAppHealthRoute
   '/app/home': typeof AuthenticatedAppHomeRoute
   '/app/login': typeof AuthenticatedAppLoginRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/app/admin': typeof AuthenticatedAppAdminRoute
   '/app/channels': typeof AuthenticatedAppChannelsRoute
+  '/app/health': typeof AuthenticatedAppHealthRoute
   '/app/home': typeof AuthenticatedAppHomeRoute
   '/app/login': typeof AuthenticatedAppLoginRoute
   '/app/logs': typeof AuthenticatedAppLogsRoute
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/admin': typeof AuthenticatedAppAdminRoute
   '/_authenticated/app/channels': typeof AuthenticatedAppChannelsRoute
+  '/_authenticated/app/health': typeof AuthenticatedAppHealthRoute
   '/_authenticated/app/home': typeof AuthenticatedAppHomeRoute
   '/_authenticated/app/login': typeof AuthenticatedAppLoginRoute
   '/_authenticated/app/logs': typeof AuthenticatedAppLogsRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/admin'
     | '/app/channels'
+    | '/app/health'
     | '/app/home'
     | '/app/login'
     | '/app/logs'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/app/admin'
     | '/app/channels'
+    | '/app/health'
     | '/app/home'
     | '/app/login'
     | '/app/logs'
@@ -328,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/_authenticated/app/admin'
     | '/_authenticated/app/channels'
+    | '/_authenticated/app/health'
     | '/_authenticated/app/home'
     | '/_authenticated/app/login'
     | '/_authenticated/app/logs'
@@ -468,6 +480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppHomeRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/health': {
+      id: '/_authenticated/app/health'
+      path: '/health'
+      fullPath: '/app/health'
+      preLoaderRoute: typeof AuthenticatedAppHealthRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/channels': {
       id: '/_authenticated/app/channels'
       path: '/channels'
@@ -565,6 +584,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAdminRoute: typeof AuthenticatedAppAdminRoute
   AuthenticatedAppChannelsRoute: typeof AuthenticatedAppChannelsRoute
+  AuthenticatedAppHealthRoute: typeof AuthenticatedAppHealthRoute
   AuthenticatedAppHomeRoute: typeof AuthenticatedAppHomeRoute
   AuthenticatedAppLoginRoute: typeof AuthenticatedAppLoginRoute
   AuthenticatedAppLogsRoute: typeof AuthenticatedAppLogsRoute
@@ -579,6 +599,7 @@ interface AuthenticatedAppRouteChildren {
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAdminRoute: AuthenticatedAppAdminRoute,
   AuthenticatedAppChannelsRoute: AuthenticatedAppChannelsRoute,
+  AuthenticatedAppHealthRoute: AuthenticatedAppHealthRoute,
   AuthenticatedAppHomeRoute: AuthenticatedAppHomeRoute,
   AuthenticatedAppLoginRoute: AuthenticatedAppLoginRoute,
   AuthenticatedAppLogsRoute: AuthenticatedAppLogsRoute,
