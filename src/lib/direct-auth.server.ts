@@ -49,11 +49,84 @@ export function verifySupabaseJwt(
 }
 
 
+export type SessionIdentity = { userId: string; email?: string; phone?: string; name?: string };
+
+/** Short-lived signed ticket. Uses `uid` (never `sub`) so it can't be used as an access token. */
+export function signTicket(payload: Record<string, unknown>, secret: string, ttlSec: number) {
+  const iat = Math.floor(Date.now() / 1000);
+  return signSupabaseJwt({ ...payload, iat, exp: iat + ttlSec }, secret);
+}
+
+export function buildRefreshToken(id: SessionIdentity, secret: string) {
+  return signTicket(
+    { typ: "ff_refresh", uid: id.userId, email: id.email ?? "", phone: id.phone ?? "", name: id.name ?? "" },
+    secret,
+    60 * 60 * 24 * 30,
+  );
+}
+
+export function identityFromRefreshToken(token: string, secret: string): SessionIdentity | null {
+  const c = verifySupabaseJwt(token, secret) as Record<string, unknown> | null;
+  if (!c || c.typ !== "ff_refresh" || typeof c.uid !== "string") return null;
+  return {
+    userId: c.uid,
+    email: (c.email as string) || undefined,
+    phone: (c.phone as string) || undefined,
+    name: (c.name as string) || undefined,
+  };
+}
+
 export function buildAdminSession(email: string, secret: string) {
+  return buildUserSession({ userId: DIRECT_ADMIN_USER_ID, email, name: "Admin" }, secret);
+}
+
+export function buildUserSession(id: SessionIdentity, secret: string) {
+  const email = id.email ?? "";
+  const phone = id.phone ?? "";
+  const displayName = id.name ?? (phone || email);
+  const provider = id.userId === DIRECT_ADMIN_USER_ID ? "direct" : "phone";
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + 60 * 60 * 24 * 7;
   const accessToken = signSupabaseJwt(
     {
+      aud: "authenticated",
+      role: "authenticated",
+      sub: id.userId,
+      email,
+      phone,
+      iat: issuedAt,
+      exp: expiresAt,
+      app_metadata: { provider, providers: [provider] },
+      user_metadata: { display_name: displayName },
+      session_id: id.userId,
+    },
+    secret,
+  );
+
+  return {
+    access_token: accessToken,
+    refresh_token: buildRefreshToken(id, secret),
+    token_type: "bearer",
+    expires_in: expiresAt - issuedAt,
+    expires_at: expiresAt,
+    user: {
+      id: id.userId,
+      aud: "authenticated",
+      role: "authenticated",
+      email,
+      email_confirmed_at: new Date(issuedAt * 1000).toISOString(),
+      phone,
+      confirmed_at: new Date(issuedAt * 1000).toISOString(),
+      last_sign_in_at: new Date(issuedAt * 1000).toISOString(),
+      app_metadata: { provider, providers: [provider] },
+      user_metadata: { display_name: displayName },
+      identities: [],
+      created_at: new Date(issuedAt * 1000).toISOString(),
+      updated_at: new Date(issuedAt * 1000).toISOString(),
+      is_anonymous: false,
+    },
+  };
+}
       aud: "authenticated",
       role: "authenticated",
       sub: DIRECT_ADMIN_USER_ID,
