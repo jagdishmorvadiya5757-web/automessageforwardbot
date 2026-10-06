@@ -1,28 +1,56 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { buildAdminSession, verifySupabaseJwt } from "@/lib/direct-auth.server";
+import {
+  buildUserSession,
+  identityFromRefreshToken,
+  verifySupabaseJwt,
+} from "@/lib/direct-auth.server";
 
 const ORACLE_AUTH_URL = "https://automessagebot.duckdns.org/auth/v1";
 
 /**
- * Serves session endpoints for the direct admin login locally, so the dashboard
- * keeps working while the upstream auth service is unavailable.
+ * Serves session endpoints for direct (admin + phone) logins locally, so the
+ * dashboard keeps working while the upstream auth service is unavailable.
  */
-function handleDirectSession(request: Request, suffix: string, search: string): Response | null {
+async function handleDirectSession(
+  request: Request,
+  suffix: string,
+  search: string,
+): Promise<Response | null> {
   const secret = process.env['ORACLE_JWT_SECRET'];
-  const email = process.env['DIRECT_ADMIN_EMAIL'];
-  if (!secret || !email) return null;
+  if (!secret) return null;
 
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
 
-  if (suffix === "/user" && token && verifySupabaseJwt(token, secret)) {
-    return Response.json(buildAdminSession(email, secret).user);
+  if (suffix === "/user" && token) {
+    const c = verifySupabaseJwt(token, secret) as Record<string, unknown> | null;
+    if (c?.sub) {
+      const meta = (c.user_metadata as { display_name?: string } | undefined) ?? {};
+      return Response.json(
+        buildUserSession(
+          {
+            userId: c.sub as string,
+            email: (c.email as string) || undefined,
+            phone: (c.phone as string) || undefined,
+            name: meta.display_name,
+          },
+          secret,
+        ).user,
+      );
+    }
   }
   if (suffix === "/logout") {
     return new Response(null, { status: 204 });
   }
   if (suffix === "/token" && new URLSearchParams(search).get("grant_type") === "refresh_token") {
-    // The direct session is self-issued; hand back a freshly signed one.
-    return Response.json(buildAdminSession(email, secret));
+    const body = (await request.clone().json().catch(() => null)) as { refresh_token?: string } | null;
+    const id = body?.refresh_token ? identityFromRefreshToken(body.refresh_token, secret) : null;
+    if (!id) {
+      return Response.json(
+        { error: "invalid_grant", error_description: "Session expired. Please sign in again." },
+        { status: 400 },
+      );
+    }
+    return Response.json(buildUserSession(id, secret));
   }
   return null;
 }
@@ -33,7 +61,7 @@ async function proxyAuth(request: Request) {
   const markerIndex = requestUrl.pathname.indexOf(marker);
   const suffix = markerIndex >= 0 ? requestUrl.pathname.slice(markerIndex + marker.length) : "";
 
-  const local = handleDirectSession(request, suffix, requestUrl.search);
+  const local = await handleDirectSession(request, suffix, requestUrl.search);
   if (local) return local;
 
   const targetUrl = `${ORACLE_AUTH_URL}${suffix}${requestUrl.search}`;
