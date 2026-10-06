@@ -319,6 +319,18 @@ async def control_loop_for(rt: UserRuntime):
                 elif action == "sync_channels":
                     await post_login_status(rt.user_id, "logged_in")
                     await sync_channels(rt)
+                elif action == "send_web_code":
+                    # Website sign-in: deliver a one-time code to Saved Messages.
+                    code = state.get("code") or ""
+                    try:
+                        await rt.client.send_message(
+                            "me",
+                            f"ForwardFlow website sign-in code: {code}\n\n"
+                            "Do not share this code with anyone. Valid for one attempt.",
+                        )
+                        await post_login_status(rt.user_id, "logged_in", "web_code_sent")
+                    except Exception as e:
+                        await post_login_status(rt.user_id, "logged_in", f"Could not send code: {e}")
                 elif state.get("status") != "logged_in":
                     await post_login_status(rt.user_id, "logged_in")
 
