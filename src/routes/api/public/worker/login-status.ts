@@ -29,7 +29,10 @@ export const Route = createFileRoute("/api/public/worker/login-status")({
         const parsed = bodySchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return new Response("Bad request", { status: 400 });
 
-        const shouldClearCodeHash = parsed.data.status === "logged_in" || parsed.data.status === "logged_out";
+        // "web_code_sent" = website sign-in code delivered to Saved Messages; keep its hash.
+        const shouldClearCodeHash =
+          (parsed.data.status === "logged_in" && parsed.data.detail !== "web_code_sent") ||
+          parsed.data.status === "logged_out";
         const updatePayload: Record<string, string | null> = {
           status: parsed.data.status,
           detail: parsed.data.detail ?? null,
