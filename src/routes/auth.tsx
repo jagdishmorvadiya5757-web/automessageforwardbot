@@ -30,7 +30,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-function saveSessionAndGo(session: unknown) {
+export function saveSessionAndGo(session: unknown) {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   const ref = url ? new URL(url).hostname.split(".")[0] : null;
   if (!ref) throw new Error("Session storage is unavailable in this browser.");
