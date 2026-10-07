@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as FfControl7q9xRouteImport } from './routes/ff-control-7q9x'
 import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -38,6 +39,11 @@ import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public
 import { Route as ApiPublicWorkerBackfillRouteImport } from './routes/api/public/worker/backfill'
 import { Route as ApiPublicOracleAuthSplatRouteImport } from './routes/api/public/oracle-auth.$'
 
+const FfControl7q9xRoute = FfControl7q9xRouteImport.update({
+  id: '/ff-control-7q9x',
+  path: '/ff-control-7q9x',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClaimRoute = ClaimRouteImport.update({
   id: '/claim',
   path: '/claim',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
+  '/ff-control-7q9x': typeof FfControl7q9xRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/admin': typeof AuthenticatedAppAdminRoute
   '/app/channels': typeof AuthenticatedAppChannelsRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
+  '/ff-control-7q9x': typeof FfControl7q9xRoute
   '/app/admin': typeof AuthenticatedAppAdminRoute
   '/app/channels': typeof AuthenticatedAppChannelsRoute
   '/app/health': typeof AuthenticatedAppHealthRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/claim': typeof ClaimRoute
+  '/ff-control-7q9x': typeof FfControl7q9xRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/admin': typeof AuthenticatedAppAdminRoute
   '/_authenticated/app/channels': typeof AuthenticatedAppChannelsRoute
@@ -278,6 +287,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/claim'
+    | '/ff-control-7q9x'
     | '/app'
     | '/app/admin'
     | '/app/channels'
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/claim'
+    | '/ff-control-7q9x'
     | '/app/admin'
     | '/app/channels'
     | '/app/health'
@@ -336,6 +347,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/claim'
+    | '/ff-control-7q9x'
     | '/_authenticated/app'
     | '/_authenticated/app/admin'
     | '/_authenticated/app/channels'
@@ -367,6 +379,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ClaimRoute: typeof ClaimRoute
+  FfControl7q9xRoute: typeof FfControl7q9xRoute
   ApiPublicOracleAuthSplatRoute: typeof ApiPublicOracleAuthSplatRoute
   ApiPublicWorkerBackfillRoute: typeof ApiPublicWorkerBackfillRoute
   ApiPublicWorkerChannelsRoute: typeof ApiPublicWorkerChannelsRoute
@@ -382,6 +395,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/ff-control-7q9x': {
+      id: '/ff-control-7q9x'
+      path: '/ff-control-7q9x'
+      fullPath: '/ff-control-7q9x'
+      preLoaderRoute: typeof FfControl7q9xRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/claim': {
       id: '/claim'
       path: '/claim'
@@ -630,6 +650,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ClaimRoute: ClaimRoute,
+  FfControl7q9xRoute: FfControl7q9xRoute,
   ApiPublicOracleAuthSplatRoute: ApiPublicOracleAuthSplatRoute,
   ApiPublicWorkerBackfillRoute: ApiPublicWorkerBackfillRoute,
   ApiPublicWorkerChannelsRoute: ApiPublicWorkerChannelsRoute,
