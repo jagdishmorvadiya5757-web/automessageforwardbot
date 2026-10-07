@@ -9,48 +9,39 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ClaimRouteImport } from './routes/claim'
 import { Route as FfControl7q9xRouteImport } from './routes/ff-control-7q9x'
+import { Route as ClaimRouteImport } from './routes/claim'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
-import { Route as AuthenticatedAppAdminRouteImport } from './routes/_authenticated/app.admin'
-import { Route as AuthenticatedAppChannelsRouteImport } from './routes/_authenticated/app.channels'
-import { Route as AuthenticatedAppHealthRouteImport } from './routes/_authenticated/app.health'
-import { Route as AuthenticatedAppHomeRouteImport } from './routes/_authenticated/app.home'
-import { Route as AuthenticatedAppLoginRouteImport } from './routes/_authenticated/app.login'
-import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
-import { Route as AuthenticatedAppPlanRouteImport } from './routes/_authenticated/app.plan'
-import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
-import { Route as AuthenticatedAppRewardsRouteImport } from './routes/_authenticated/app.rewards'
-import { Route as AuthenticatedAppWalletRouteImport } from './routes/_authenticated/app.wallet'
 import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
-import { Route as ApiPublicOracleAuthSplatRouteImport } from './routes/api/public/oracle-auth.$'
-import { Route as ApiPublicWorkerBackfillRouteImport } from './routes/api/public/worker/backfill'
-import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
-import { Route as ApiPublicWorkerForwardSlotsRouteImport } from './routes/api/public/worker/forward-slots'
-import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
-import { Route as ApiPublicWorkerLoginStateRouteImport } from './routes/api/public/worker/login-state'
-import { Route as ApiPublicWorkerLoginStatusRouteImport } from './routes/api/public/worker/login-status'
-import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
-import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
-import { Route as ApiPublicWorkerSessionRouteImport } from './routes/api/public/worker/session'
+import { Route as AuthenticatedAppWalletRouteImport } from './routes/_authenticated/app.wallet'
+import { Route as AuthenticatedAppRewardsRouteImport } from './routes/_authenticated/app.rewards'
+import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
+import { Route as AuthenticatedAppPlanRouteImport } from './routes/_authenticated/app.plan'
+import { Route as AuthenticatedAppLogsRouteImport } from './routes/_authenticated/app.logs'
+import { Route as AuthenticatedAppLoginRouteImport } from './routes/_authenticated/app.login'
+import { Route as AuthenticatedAppHomeRouteImport } from './routes/_authenticated/app.home'
+import { Route as AuthenticatedAppHealthRouteImport } from './routes/_authenticated/app.health'
+import { Route as AuthenticatedAppChannelsRouteImport } from './routes/_authenticated/app.channels'
+import { Route as AuthenticatedAppAdminRouteImport } from './routes/_authenticated/app.admin'
 import { Route as ApiPublicWorkerUsersRouteImport } from './routes/api/public/worker/users'
+import { Route as ApiPublicWorkerSessionRouteImport } from './routes/api/public/worker/session'
+import { Route as ApiPublicWorkerRulesRouteImport } from './routes/api/public/worker/rules'
+import { Route as ApiPublicWorkerLogsRouteImport } from './routes/api/public/worker/logs'
+import { Route as ApiPublicWorkerLoginStatusRouteImport } from './routes/api/public/worker/login-status'
+import { Route as ApiPublicWorkerLoginStateRouteImport } from './routes/api/public/worker/login-state'
+import { Route as ApiPublicWorkerHeartbeatRouteImport } from './routes/api/public/worker/heartbeat'
+import { Route as ApiPublicWorkerForwardSlotsRouteImport } from './routes/api/public/worker/forward-slots'
+import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
+import { Route as ApiPublicWorkerBackfillRouteImport } from './routes/api/public/worker/backfill'
+import { Route as ApiPublicOracleAuthSplatRouteImport } from './routes/api/public/oracle-auth.$'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const FfControl7q9xRoute = FfControl7q9xRouteImport.update({
+  id: '/ff-control-7q9x',
+  path: '/ff-control-7q9x',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClaimRoute = ClaimRouteImport.update({
@@ -58,9 +49,18 @@ const ClaimRoute = ClaimRouteImport.update({
   path: '/claim',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FfControl7q9xRoute = FfControl7q9xRouteImport.update({
-  id: '/ff-control-7q9x',
-  path: '/ff-control-7q9x',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
@@ -73,9 +73,49 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppAdminRoute = AuthenticatedAppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AuthenticatedAppWorkerRoute = AuthenticatedAppWorkerRouteImport.update({
+  id: '/worker',
+  path: '/worker',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppWalletRoute = AuthenticatedAppWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppRewardsRoute = AuthenticatedAppRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPlanRoute = AuthenticatedAppPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppLogsRoute = AuthenticatedAppLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppLoginRoute = AuthenticatedAppLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppHomeRoute = AuthenticatedAppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppHealthRoute = AuthenticatedAppHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
 const AuthenticatedAppChannelsRoute =
@@ -84,77 +124,35 @@ const AuthenticatedAppChannelsRoute =
     path: '/channels',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppHealthRoute = AuthenticatedAppHealthRouteImport.update({
-  id: '/health',
-  path: '/health',
+const AuthenticatedAppAdminRoute = AuthenticatedAppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppHomeRoute = AuthenticatedAppHomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppLoginRoute = AuthenticatedAppLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppLogsRoute = AuthenticatedAppLogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppPlanRoute = AuthenticatedAppPlanRouteImport.update({
-  id: '/plan',
-  path: '/plan',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppRewardsRoute = AuthenticatedAppRewardsRouteImport.update({
-  id: '/rewards',
-  path: '/rewards',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppWalletRoute = AuthenticatedAppWalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppWorkerRoute = AuthenticatedAppWorkerRouteImport.update({
-  id: '/worker',
-  path: '/worker',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const ApiPublicOracleAuthSplatRoute =
-  ApiPublicOracleAuthSplatRouteImport.update({
-    id: '/api/public/oracle-auth/$',
-    path: '/api/public/oracle-auth/$',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicWorkerBackfillRoute = ApiPublicWorkerBackfillRouteImport.update({
-  id: '/api/public/worker/backfill',
-  path: '/api/public/worker/backfill',
+const ApiPublicWorkerUsersRoute = ApiPublicWorkerUsersRouteImport.update({
+  id: '/api/public/worker/users',
+  path: '/api/public/worker/users',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWorkerChannelsRoute = ApiPublicWorkerChannelsRouteImport.update({
-  id: '/api/public/worker/channels',
-  path: '/api/public/worker/channels',
+const ApiPublicWorkerSessionRoute = ApiPublicWorkerSessionRouteImport.update({
+  id: '/api/public/worker/session',
+  path: '/api/public/worker/session',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWorkerForwardSlotsRoute =
-  ApiPublicWorkerForwardSlotsRouteImport.update({
-    id: '/api/public/worker/forward-slots',
-    path: '/api/public/worker/forward-slots',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicWorkerHeartbeatRoute =
-  ApiPublicWorkerHeartbeatRouteImport.update({
-    id: '/api/public/worker/heartbeat',
-    path: '/api/public/worker/heartbeat',
+const ApiPublicWorkerRulesRoute = ApiPublicWorkerRulesRouteImport.update({
+  id: '/api/public/worker/rules',
+  path: '/api/public/worker/rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkerLogsRoute = ApiPublicWorkerLogsRouteImport.update({
+  id: '/api/public/worker/logs',
+  path: '/api/public/worker/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkerLoginStatusRoute =
+  ApiPublicWorkerLoginStatusRouteImport.update({
+    id: '/api/public/worker/login-status',
+    path: '/api/public/worker/login-status',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicWorkerLoginStateRoute =
@@ -163,32 +161,34 @@ const ApiPublicWorkerLoginStateRoute =
     path: '/api/public/worker/login-state',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicWorkerLoginStatusRoute =
-  ApiPublicWorkerLoginStatusRouteImport.update({
-    id: '/api/public/worker/login-status',
-    path: '/api/public/worker/login-status',
+const ApiPublicWorkerHeartbeatRoute =
+  ApiPublicWorkerHeartbeatRouteImport.update({
+    id: '/api/public/worker/heartbeat',
+    path: '/api/public/worker/heartbeat',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicWorkerLogsRoute = ApiPublicWorkerLogsRouteImport.update({
-  id: '/api/public/worker/logs',
-  path: '/api/public/worker/logs',
+const ApiPublicWorkerForwardSlotsRoute =
+  ApiPublicWorkerForwardSlotsRouteImport.update({
+    id: '/api/public/worker/forward-slots',
+    path: '/api/public/worker/forward-slots',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWorkerChannelsRoute = ApiPublicWorkerChannelsRouteImport.update({
+  id: '/api/public/worker/channels',
+  path: '/api/public/worker/channels',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWorkerRulesRoute = ApiPublicWorkerRulesRouteImport.update({
-  id: '/api/public/worker/rules',
-  path: '/api/public/worker/rules',
+const ApiPublicWorkerBackfillRoute = ApiPublicWorkerBackfillRouteImport.update({
+  id: '/api/public/worker/backfill',
+  path: '/api/public/worker/backfill',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWorkerSessionRoute = ApiPublicWorkerSessionRouteImport.update({
-  id: '/api/public/worker/session',
-  path: '/api/public/worker/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicWorkerUsersRoute = ApiPublicWorkerUsersRouteImport.update({
-  id: '/api/public/worker/users',
-  path: '/api/public/worker/users',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const ApiPublicOracleAuthSplatRoute =
+  ApiPublicOracleAuthSplatRouteImport.update({
+    id: '/api/public/oracle-auth/$',
+    path: '/api/public/oracle-auth/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -395,25 +395,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/ff-control-7q9x': {
+      id: '/ff-control-7q9x'
+      path: '/ff-control-7q9x'
+      fullPath: '/ff-control-7q9x'
+      preLoaderRoute: typeof FfControl7q9xRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/claim': {
@@ -423,11 +409,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClaimRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ff-control-7q9x': {
-      id: '/ff-control-7q9x'
-      path: '/ff-control-7q9x'
-      fullPath: '/ff-control-7q9x'
-      preLoaderRoute: typeof FfControl7q9xRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app': {
@@ -444,67 +444,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/admin': {
-      id: '/_authenticated/app/admin'
-      path: '/admin'
-      fullPath: '/app/admin'
-      preLoaderRoute: typeof AuthenticatedAppAdminRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/channels': {
-      id: '/_authenticated/app/channels'
-      path: '/channels'
-      fullPath: '/app/channels'
-      preLoaderRoute: typeof AuthenticatedAppChannelsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/health': {
-      id: '/_authenticated/app/health'
-      path: '/health'
-      fullPath: '/app/health'
-      preLoaderRoute: typeof AuthenticatedAppHealthRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/home': {
-      id: '/_authenticated/app/home'
-      path: '/home'
-      fullPath: '/app/home'
-      preLoaderRoute: typeof AuthenticatedAppHomeRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/login': {
-      id: '/_authenticated/app/login'
-      path: '/login'
-      fullPath: '/app/login'
-      preLoaderRoute: typeof AuthenticatedAppLoginRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/logs': {
-      id: '/_authenticated/app/logs'
-      path: '/logs'
-      fullPath: '/app/logs'
-      preLoaderRoute: typeof AuthenticatedAppLogsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/plan': {
-      id: '/_authenticated/app/plan'
-      path: '/plan'
-      fullPath: '/app/plan'
-      preLoaderRoute: typeof AuthenticatedAppPlanRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/profile': {
-      id: '/_authenticated/app/profile'
-      path: '/profile'
-      fullPath: '/app/profile'
-      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/rewards': {
-      id: '/_authenticated/app/rewards'
-      path: '/rewards'
-      fullPath: '/app/rewards'
-      preLoaderRoute: typeof AuthenticatedAppRewardsRouteImport
+    '/_authenticated/app/worker': {
+      id: '/_authenticated/app/worker'
+      path: '/worker'
+      fullPath: '/app/worker'
+      preLoaderRoute: typeof AuthenticatedAppWorkerRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/wallet': {
@@ -514,74 +458,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppWalletRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/worker': {
-      id: '/_authenticated/app/worker'
-      path: '/worker'
-      fullPath: '/app/worker'
-      preLoaderRoute: typeof AuthenticatedAppWorkerRouteImport
+    '/_authenticated/app/rewards': {
+      id: '/_authenticated/app/rewards'
+      path: '/rewards'
+      fullPath: '/app/rewards'
+      preLoaderRoute: typeof AuthenticatedAppRewardsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/oracle-auth/$': {
-      id: '/api/public/oracle-auth/$'
-      path: '/api/public/oracle-auth/$'
-      fullPath: '/api/public/oracle-auth/$'
-      preLoaderRoute: typeof ApiPublicOracleAuthSplatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/profile': {
+      id: '/_authenticated/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/backfill': {
-      id: '/api/public/worker/backfill'
-      path: '/api/public/worker/backfill'
-      fullPath: '/api/public/worker/backfill'
-      preLoaderRoute: typeof ApiPublicWorkerBackfillRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/plan': {
+      id: '/_authenticated/app/plan'
+      path: '/plan'
+      fullPath: '/app/plan'
+      preLoaderRoute: typeof AuthenticatedAppPlanRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/channels': {
-      id: '/api/public/worker/channels'
-      path: '/api/public/worker/channels'
-      fullPath: '/api/public/worker/channels'
-      preLoaderRoute: typeof ApiPublicWorkerChannelsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/logs': {
+      id: '/_authenticated/app/logs'
+      path: '/logs'
+      fullPath: '/app/logs'
+      preLoaderRoute: typeof AuthenticatedAppLogsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/forward-slots': {
-      id: '/api/public/worker/forward-slots'
-      path: '/api/public/worker/forward-slots'
-      fullPath: '/api/public/worker/forward-slots'
-      preLoaderRoute: typeof ApiPublicWorkerForwardSlotsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/login': {
+      id: '/_authenticated/app/login'
+      path: '/login'
+      fullPath: '/app/login'
+      preLoaderRoute: typeof AuthenticatedAppLoginRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/heartbeat': {
-      id: '/api/public/worker/heartbeat'
-      path: '/api/public/worker/heartbeat'
-      fullPath: '/api/public/worker/heartbeat'
-      preLoaderRoute: typeof ApiPublicWorkerHeartbeatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/home': {
+      id: '/_authenticated/app/home'
+      path: '/home'
+      fullPath: '/app/home'
+      preLoaderRoute: typeof AuthenticatedAppHomeRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/login-state': {
-      id: '/api/public/worker/login-state'
-      path: '/api/public/worker/login-state'
-      fullPath: '/api/public/worker/login-state'
-      preLoaderRoute: typeof ApiPublicWorkerLoginStateRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/health': {
+      id: '/_authenticated/app/health'
+      path: '/health'
+      fullPath: '/app/health'
+      preLoaderRoute: typeof AuthenticatedAppHealthRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/login-status': {
-      id: '/api/public/worker/login-status'
-      path: '/api/public/worker/login-status'
-      fullPath: '/api/public/worker/login-status'
-      preLoaderRoute: typeof ApiPublicWorkerLoginStatusRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/channels': {
+      id: '/_authenticated/app/channels'
+      path: '/channels'
+      fullPath: '/app/channels'
+      preLoaderRoute: typeof AuthenticatedAppChannelsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/logs': {
-      id: '/api/public/worker/logs'
-      path: '/api/public/worker/logs'
-      fullPath: '/api/public/worker/logs'
-      preLoaderRoute: typeof ApiPublicWorkerLogsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/app/admin': {
+      id: '/_authenticated/app/admin'
+      path: '/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AuthenticatedAppAdminRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/worker/rules': {
-      id: '/api/public/worker/rules'
-      path: '/api/public/worker/rules'
-      fullPath: '/api/public/worker/rules'
-      preLoaderRoute: typeof ApiPublicWorkerRulesRouteImport
+    '/api/public/worker/users': {
+      id: '/api/public/worker/users'
+      path: '/api/public/worker/users'
+      fullPath: '/api/public/worker/users'
+      preLoaderRoute: typeof ApiPublicWorkerUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/worker/session': {
@@ -591,11 +535,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkerSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/worker/users': {
-      id: '/api/public/worker/users'
-      path: '/api/public/worker/users'
-      fullPath: '/api/public/worker/users'
-      preLoaderRoute: typeof ApiPublicWorkerUsersRouteImport
+    '/api/public/worker/rules': {
+      id: '/api/public/worker/rules'
+      path: '/api/public/worker/rules'
+      fullPath: '/api/public/worker/rules'
+      preLoaderRoute: typeof ApiPublicWorkerRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/logs': {
+      id: '/api/public/worker/logs'
+      path: '/api/public/worker/logs'
+      fullPath: '/api/public/worker/logs'
+      preLoaderRoute: typeof ApiPublicWorkerLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/login-status': {
+      id: '/api/public/worker/login-status'
+      path: '/api/public/worker/login-status'
+      fullPath: '/api/public/worker/login-status'
+      preLoaderRoute: typeof ApiPublicWorkerLoginStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/login-state': {
+      id: '/api/public/worker/login-state'
+      path: '/api/public/worker/login-state'
+      fullPath: '/api/public/worker/login-state'
+      preLoaderRoute: typeof ApiPublicWorkerLoginStateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/heartbeat': {
+      id: '/api/public/worker/heartbeat'
+      path: '/api/public/worker/heartbeat'
+      fullPath: '/api/public/worker/heartbeat'
+      preLoaderRoute: typeof ApiPublicWorkerHeartbeatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/forward-slots': {
+      id: '/api/public/worker/forward-slots'
+      path: '/api/public/worker/forward-slots'
+      fullPath: '/api/public/worker/forward-slots'
+      preLoaderRoute: typeof ApiPublicWorkerForwardSlotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/channels': {
+      id: '/api/public/worker/channels'
+      path: '/api/public/worker/channels'
+      fullPath: '/api/public/worker/channels'
+      preLoaderRoute: typeof ApiPublicWorkerChannelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker/backfill': {
+      id: '/api/public/worker/backfill'
+      path: '/api/public/worker/backfill'
+      fullPath: '/api/public/worker/backfill'
+      preLoaderRoute: typeof ApiPublicWorkerBackfillRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oracle-auth/$': {
+      id: '/api/public/oracle-auth/$'
+      path: '/api/public/oracle-auth/$'
+      fullPath: '/api/public/oracle-auth/$'
+      preLoaderRoute: typeof ApiPublicOracleAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
