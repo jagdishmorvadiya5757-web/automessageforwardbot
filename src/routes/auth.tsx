@@ -57,18 +57,7 @@ function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="phone">
-              <TabsList className="mb-4 grid w-full grid-cols-2">
-                <TabsTrigger value="phone">Phone</TabsTrigger>
-                <TabsTrigger value="admin">Admin</TabsTrigger>
-              </TabsList>
-              <TabsContent value="phone">
-                <PhoneSignIn />
-              </TabsContent>
-              <TabsContent value="admin">
-                <AdminSignIn />
-              </TabsContent>
-            </Tabs>
+            <PhoneSignIn />
           </CardContent>
         </Card>
       </div>
