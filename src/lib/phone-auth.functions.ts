@@ -53,15 +53,50 @@ export const startPhoneSignIn = createServerFn({ method: "POST" })
     const { randomInt } = await import("node:crypto");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: uid, error } = await supabaseAdmin.rpc(
-      "find_or_create_phone_user" as never,
-      { _phone: data.phone } as never,
-    );
-    if (error || !uid) {
-      console.error("find_or_create_phone_user failed", error?.message);
-      throw new Error("Could not start sign-in right now. Please try again shortly.");
+    // The Oracle DB has no auth.users table, so accounts are resolved from the
+    // app's own tables (Telegram session/auth rows) and created directly.
+    const digits = data.phone.replace(/\D/g, "");
+    const variants = [data.phone, digits];
+    let userId: string | null = null;
+    const { data: sesRow } = await supabaseAdmin
+      .from("telegram_sessions")
+      .select("user_id, status")
+      .in("phone" as never, variants as never)
+      .order("updated_at", { ascending: false })
+      .limit(5);
+    const rows = (sesRow ?? []) as { user_id: string; status: string }[];
+    userId = (rows.find((r) => r.status === "logged_in") ?? rows[0])?.user_id ?? null;
+    if (!userId) {
+      const { data: authRow } = await supabaseAdmin
+        .from("telegram_auth")
+        .select("user_id")
+        .in("phone" as never, variants as never)
+        .limit(1)
+        .maybeSingle();
+      userId = (authRow as { user_id: string } | null)?.user_id ?? null;
     }
-    const userId = uid as unknown as string;
+    if (!userId) {
+      userId = crypto.randomUUID();
+      const name = "+" + digits;
+      const steps = [
+        supabaseAdmin.from("profiles").insert({ id: userId, display_name: name } as never),
+        supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "user" } as never),
+        supabaseAdmin.from("subscriptions").insert({
+          user_id: userId,
+          plan: "trial",
+          trial_ends_at: new Date(Date.now() + 3 * 864e5).toISOString(),
+          is_active: true,
+        } as never),
+        supabaseAdmin.from("wallets").insert({ user_id: userId, balance: 0 } as never),
+      ];
+      for (const step of steps) {
+        const { error } = await step;
+        if (error) {
+          console.error("phone signup create failed", error.message);
+          throw new Error("Could not start sign-in right now. Please try again shortly.");
+        }
+      }
+    }
 
     const { data: prev } = await supabaseAdmin
       .from("telegram_auth")
