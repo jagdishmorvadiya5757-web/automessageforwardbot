@@ -233,6 +233,14 @@ async def sync_channels(rt: UserRuntime):
 async def handle_login(rt: UserRuntime, state: dict):
     action = state.get("pending_action")
     if not action:
+        rt.login_ctx["last_action"] = None
+        return
+
+    # The API clears pending_action only after we post the new status, so the
+    # next poll can still show the same action. Skip repeats — otherwise
+    # request_code runs twice and Telegram answers with ResendCodeRequest,
+    # which wipes the awaiting_code state and kicks the user back to start.
+    if action == rt.login_ctx.get("last_action"):
         return
 
     if action == "request_code":
