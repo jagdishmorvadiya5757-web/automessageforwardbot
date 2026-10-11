@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { DAILY_CODE_LIMIT, istDayStartIso } from "./phone-limit";
 
 // Phone + Telegram OTP sign-in for regular users.
 //  - "otp" mode: number not connected yet -> Telegram sends its official login
@@ -11,15 +12,6 @@ type Mode = "otp" | "saved";
 type Ticket = { uid: string; phone: string; mode: Mode; iat: number };
 
 const TICKET_TTL = 15 * 60;
-export const DAILY_CODE_LIMIT = 3;
-const IST_OFFSET_MS = 5.5 * 3600_000;
-
-/** Start of the current India (IST) calendar day, as an ISO timestamp. */
-export function istDayStartIso(now = Date.now()) {
-  const shifted = now + IST_OFFSET_MS;
-  const dayStart = shifted - (shifted % 86_400_000);
-  return new Date(dayStart - IST_OFFSET_MS).toISOString();
-}
 
 // Returns null when the attempts table is missing (limit not enforced yet).
 async function countCodesToday(
