@@ -303,6 +303,10 @@ async def handle_login(rt: UserRuntime, state: dict):
         await clear_session(rt.user_id)
         await post_login_status(rt.user_id, "logged_out")
 
+    # Mark handled so the next poll (which may still show the same action
+    # until the API write lands) does not run it again.
+    rt.login_ctx["last_action"] = action
+
 
 async def control_loop_for(rt: UserRuntime):
     """Login state machine + rule polling for one user."""
