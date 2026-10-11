@@ -29,8 +29,8 @@ WORKER_TOKEN = os.environ["WORKER_TOKEN"]  # this is now the MASTER token
 TG_API_ID = int(os.environ["TG_API_ID"])
 TG_API_HASH = os.environ["TG_API_HASH"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "10"))
-LOGIN_POLL_INTERVAL = int(os.environ.get("LOGIN_POLL_INTERVAL", "3"))
-USERS_POLL_INTERVAL = int(os.environ.get("USERS_POLL_INTERVAL", "5"))
+LOGIN_POLL_INTERVAL = float(os.environ.get("LOGIN_POLL_INTERVAL", "1.5"))
+USERS_POLL_INTERVAL = float(os.environ.get("USERS_POLL_INTERVAL", "2"))
 IDLE_POLL_INTERVAL = int(os.environ.get("IDLE_POLL_INTERVAL", "30"))
 SPAWN_CONCURRENCY = int(os.environ.get("SPAWN_CONCURRENCY", "5"))
 SPAWN_GAP = float(os.environ.get("SPAWN_GAP", "0.4"))
@@ -38,7 +38,7 @@ FORWARD_DELAY = float(os.environ.get("FORWARD_DELAY", "0"))
 FLOOD_WAIT_EXTRA = float(os.environ.get("FLOOD_WAIT_EXTRA", "3"))
 
 BASE_HEADERS = {"Authorization": f"Bearer {WORKER_TOKEN}"}
-WORKER_VERSION = "2026-09-14-multiuser-v16"
+WORKER_VERSION = "2026-10-11-multiuser-v17"
 
 http = httpx.AsyncClient(timeout=30)
 
@@ -67,6 +67,7 @@ class UserRuntime:
         self.login_ctx: dict = {"phone": None, "phone_code_hash": None}
         self.forwarding_started = False
         self.pending = True  # supervisor flips this from the /users payload
+        self.wake = asyncio.Event()  # set by supervisor to end an idle sleep early
         self._tasks: list[asyncio.Task] = []
 
 
@@ -358,7 +359,14 @@ async def control_loop_for(rt: UserRuntime):
 
         # Fast polling only while something is pending (login / logout / sync).
         # Idle logged-in users poll slowly so 500 users don't hammer the API.
-        await asyncio.sleep(LOGIN_POLL_INTERVAL if rt.pending else IDLE_POLL_INTERVAL)
+        # A new sign-in request wakes us immediately instead of after 30s.
+        try:
+            await asyncio.wait_for(
+                rt.wake.wait(), LOGIN_POLL_INTERVAL if rt.pending else IDLE_POLL_INTERVAL
+            )
+        except asyncio.TimeoutError:
+            pass
+        rt.wake.clear()
 
 
 async def report_backfill(
@@ -850,6 +858,8 @@ async def supervisor():
         for uid, pending in wanted.items():
             rt = users.get(uid)
             if rt:
+                if pending and not rt.pending:
+                    rt.wake.set()
                 rt.pending = pending
 
         missing = [uid for uid in wanted if uid not in users]

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { DAILY_CODE_LIMIT, istDayStartIso } from "./phone-limit";
 
 // Phone + Telegram OTP sign-in for regular users.
 //  - "otp" mode: number not connected yet -> Telegram sends its official login
@@ -11,6 +12,29 @@ type Mode = "otp" | "saved";
 type Ticket = { uid: string; phone: string; mode: Mode; iat: number };
 
 const TICKET_TTL = 15 * 60;
+
+// Returns null when the attempts table is missing (limit not enforced yet).
+async function countCodesToday(
+  admin: { from: (t: never) => unknown },
+  digits: string,
+): Promise<number | null> {
+  const q = admin.from("phone_login_attempts" as never) as {
+    select: (c: string, o: object) => {
+      eq: (k: string, v: string) => {
+        gte: (k: string, v: string) => Promise<{ count: number | null; error: { message: string } | null }>;
+      };
+    };
+  };
+  const { count, error } = await q
+    .select("id", { count: "exact", head: true })
+    .eq("phone", digits)
+    .gte("created_at", istDayStartIso());
+  if (error) {
+    console.warn("phone_login_attempts count failed", error.message);
+    return null;
+  }
+  return count ?? 0;
+}
 
 function normPhone(raw: string) {
   const phone = raw.replace(/[\s()-]/g, "");
@@ -57,6 +81,15 @@ export const startPhoneSignIn = createServerFn({ method: "POST" })
     // app's own tables (Telegram session/auth rows) and created directly.
     const digits = data.phone.replace(/\D/g, "");
     const variants = [data.phone, digits];
+
+    // Daily limit: a number can request a sign-in code at most
+    // DAILY_CODE_LIMIT times per India calendar day.
+    const used = await countCodesToday(supabaseAdmin, digits);
+    if (used !== null && used >= DAILY_CODE_LIMIT) {
+      throw new Error(
+        `This number already used its ${DAILY_CODE_LIMIT} sign-in codes today. Please try again tomorrow.`,
+      );
+    }
     let userId: string | null = null;
     const { data: sesRow } = await supabaseAdmin
       .from("telegram_sessions")
@@ -143,12 +176,18 @@ export const startPhoneSignIn = createServerFn({ method: "POST" })
       if (upErr) throw new Error(upErr.message);
     }
 
+    const { error: logErr } = await supabaseAdmin
+      .from("phone_login_attempts" as never)
+      .insert({ phone: digits, user_id: userId } as never);
+    if (logErr) console.warn("phone_login_attempts insert failed", logErr.message);
+
     const ticket = signTicket(
       { typ: "ff_phone_login", uid: userId, phone: data.phone, mode },
       secret,
       TICKET_TTL,
     );
-    return { ticket, mode };
+    const remaining = used === null ? null : Math.max(0, DAILY_CODE_LIMIT - used - 1);
+    return { ticket, mode, remaining };
   });
 
 export const checkPhoneSignIn = createServerFn({ method: "POST" })
