@@ -158,7 +158,7 @@ export const checkPhoneSignIn = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: a } = await supabaseAdmin
       .from("telegram_auth")
-      .select("status, pending_action, detail")
+      .select("status, pending_action, detail, phone_code_hash")
       .eq("user_id", t.uid)
       .maybeSingle();
 
@@ -183,7 +183,13 @@ export const checkPhoneSignIn = createServerFn({ method: "POST" })
     }
     if (status === "awaiting_code") return { state: "awaiting_code" as const };
     if (status === "password_needed") return { state: "password_needed" as const };
-    if (status === "error") return { state: "error" as const, detail: a?.detail ?? "Telegram error" };
+    if (status === "error") {
+      // A code may already have been delivered before the error (e.g. a
+      // duplicate resend attempt). If we still hold its hash, let the user
+      // enter that code instead of forcing them to start over.
+      if (a?.phone_code_hash) return { state: "awaiting_code" as const };
+      return { state: "error" as const, detail: a?.detail ?? "Telegram error" };
+    }
     return { state: "sending" as const };
   });
 
