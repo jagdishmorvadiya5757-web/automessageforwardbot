@@ -252,6 +252,7 @@ async def handle_login(rt: UserRuntime, state: dict):
             sent = await rt.client.send_code_request(phone)
             rt.login_ctx["phone"] = phone
             rt.login_ctx["phone_code_hash"] = sent.phone_code_hash
+            rt.login_ctx["last_action"] = action
             await post_login_status(rt.user_id, "awaiting_code", phone_code_hash=sent.phone_code_hash)
         except Exception as e:
             await post_login_status(rt.user_id, "error", str(e))
@@ -278,6 +279,7 @@ async def handle_login(rt: UserRuntime, state: dict):
             await post_login_status(rt.user_id, "logged_in")
             await sync_channels(rt)
         except SessionPasswordNeededError:
+            rt.login_ctx["last_action"] = action
             await post_login_status(rt.user_id, "password_needed")
         except Exception as e:
             await post_login_status(rt.user_id, "error", str(e))
