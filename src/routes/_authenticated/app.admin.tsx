@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Copy, Plus, Trash2, Link2 } from "lucide-react";
+import { Copy, Plus, Trash2, Link2, Ban, CheckCircle2, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/admin")({
   component: AdminPage,
@@ -57,6 +57,8 @@ function AdminPage() {
   const createFn = useServerFn(createLicenseKeys);
   const deleteFn = useServerFn(deleteLicenseKey);
   const setPlanFn = useServerFn(setUserPlan);
+  const blockFn = useServerFn(setUserBlocked);
+  const [userSearch, setUserSearch] = useState("");
   const plansFn = useServerFn(listAllPlans);
   const claimsFn = useServerFn(listClaimCodes);
 
@@ -119,6 +121,23 @@ function AdminPage() {
     }
   }
 
+  async function toggleBlock(userId: string, blocked: boolean) {
+    if (blocked && !confirm("Block this user? Their sign-in and forwarding will stop.")) return;
+    try {
+      await blockFn({ data: { userId, blocked } });
+      await qc.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success(blocked ? "User blocked" : "User unblocked");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  const allUsers = users.data ?? [];
+  const q = userSearch.trim().toLowerCase();
+  const shownUsers = q
+    ? allUsers.filter((u) => `${u.name ?? ""} ${u.phone ?? ""} ${u.userId}`.toLowerCase().includes(q))
+    : allUsers;
+
   return (
     <div className="space-y-6">
       <div>
@@ -128,7 +147,7 @@ function AdminPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="plans">
+      <Tabs defaultValue="users">
         <TabsList className="flex w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabsTrigger value="plans">Plans</TabsTrigger>
           <TabsTrigger value="claims">Claim links</TabsTrigger>
@@ -291,11 +310,30 @@ function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-2 pt-4">
-          {(users.data ?? []).map((u) => (
-            <div key={u.userId} className="rounded-lg border px-3 py-3 text-sm sm:px-4">
+        <TabsContent value="users" className="space-y-3 pt-4">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["Users", allUsers.length],
+              ["Active", allUsers.filter((u) => u.isActive && !u.blocked).length],
+              ["Blocked", allUsers.filter((u) => u.blocked).length],
+            ].map(([l, v]) => (
+              <Card key={l as string}><CardContent className="p-3">
+                <p className="text-xs text-muted-foreground">{l}</p>
+                <p className="text-xl font-semibold">{v}</p>
+              </CardContent></Card>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search name or number" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
+          </div>
+          {shownUsers.map((u) => (
+            <div key={u.userId} className={`rounded-lg border px-3 py-3 text-sm sm:px-4 ${u.blocked ? "border-destructive/50 bg-destructive/5" : ""}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{u.name ?? u.userId.slice(0, 8)}</span>
+                {u.phone && <span className="text-muted-foreground">{u.phone}</span>}
+                {u.blocked && <Badge variant="destructive">Blocked</Badge>}
+                <Badge variant="secondary">Rules: {u.activeRuleCount}/{u.ruleCount} on</Badge>
                 <Badge variant={u.isActive ? "default" : "destructive"} className="capitalize">
                   {u.plan}
                 </Badge>
@@ -311,9 +349,17 @@ function AdminPage() {
                 currentPlan={u.plan}
                 onApply={(p, d) => changePlan(u.userId, p, d)}
               />
+              <Button
+                size="sm"
+                variant={u.blocked ? "outline" : "destructive"}
+                className="mt-2"
+                onClick={() => toggleBlock(u.userId, !u.blocked)}
+              >
+                {u.blocked ? <><CheckCircle2 className="mr-1 h-4 w-4" /> Unblock</> : <><Ban className="mr-1 h-4 w-4" /> Block user</>}
+              </Button>
             </div>
           ))}
-          {users.data?.length === 0 && <p className="text-sm text-muted-foreground">No users.</p>}
+          {shownUsers.length === 0 && <p className="text-sm text-muted-foreground">No users.</p>}
         </TabsContent>
       </Tabs>
     </div>

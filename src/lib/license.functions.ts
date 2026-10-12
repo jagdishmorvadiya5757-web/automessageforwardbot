@@ -158,6 +158,21 @@ export const listUsersAdmin = createServerFn({ method: "GET" })
       ? await supabaseAdmin.from("telegram_sessions").select("user_id, status").in("user_id", ids)
       : { data: [] as { user_id: string; status: string }[] };
     const statuses = Object.fromEntries((sessions ?? []).map((s) => [s.user_id, s.status]));
+    const { data: phoneRows } = ids.length
+      ? await supabaseAdmin.from("telegram_sessions").select("user_id, phone").in("user_id", ids)
+      : { data: [] as { user_id: string; phone: string | null }[] };
+    const phones = Object.fromEntries(((phoneRows ?? []) as any[]).map((s) => [s.user_id, s.phone]));
+    const { data: ruleRows } = ids.length
+      ? await supabaseAdmin.from("forwarding_rules").select("user_id, enabled").in("user_id", ids)
+      : { data: [] as { user_id: string; enabled: boolean }[] };
+    const ruleCount: Record<string, number> = {};
+    const activeRuleCount: Record<string, number> = {};
+    for (const r of (ruleRows ?? []) as any[]) {
+      ruleCount[r.user_id] = (ruleCount[r.user_id] ?? 0) + 1;
+      if (r.enabled) activeRuleCount[r.user_id] = (activeRuleCount[r.user_id] ?? 0) + 1;
+    }
+    const { getBlockedUserIds } = await import("./profile.functions");
+    const blocked = await getBlockedUserIds(supabaseAdmin);
 
     return (subs ?? []).map((s) => ({
       userId: s.user_id,
@@ -167,6 +182,10 @@ export const listUsersAdmin = createServerFn({ method: "GET" })
       subscriptionEndsAt: s.subscription_ends_at,
       isActive: s.is_active,
       telegramStatus: statuses[s.user_id] ?? "logged_out",
+      phone: (phones[s.user_id] as string | null) ?? null,
+      ruleCount: ruleCount[s.user_id] ?? 0,
+      activeRuleCount: activeRuleCount[s.user_id] ?? 0,
+      blocked: blocked.has(s.user_id),
       createdAt: s.created_at,
     }));
   });
@@ -198,5 +217,31 @@ export const setUserPlan = createServerFn({ method: "POST" })
       .from("subscriptions")
       .upsert({ user_id: data.userId, ...patch }, { onConflict: "user_id" });
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Admin: block or unblock a user (stops sign-in and forwarding). */
+export const setUserBlocked = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ userId: z.string().uuid(), blocked: z.boolean(), reason: z.string().max(200).optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as any);
+    if (data.userId === (context as any).userId) throw new Error("You cannot block yourself.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .upsert(
+        { id: data.userId, is_blocked: data.blocked, blocked_reason: data.blocked ? data.reason ?? null : null } as never,
+        { onConflict: "id" },
+      );
+    if (error) {
+      throw new Error(
+        /column/i.test(error.message)
+          ? "Blocking needs the latest database update (07_profile_and_blocking.sql)."
+          : error.message,
+      );
+    }
     return { ok: true };
   });

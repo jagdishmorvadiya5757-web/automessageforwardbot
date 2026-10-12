@@ -95,7 +95,10 @@ export const Route = createFileRoute("/api/public/worker/users")({
           });
         }
 
-        const users = [...byUser.values()];
+        // Admin-blocked users are never serviced.
+        const { getBlockedUserIds } = await import("@/lib/profile.functions");
+        const blocked = await getBlockedUserIds(supabaseAdmin);
+        const users = [...byUser.values()].filter((u) => !blocked.has(u.user_id));
 
         return Response.json({ users });
 

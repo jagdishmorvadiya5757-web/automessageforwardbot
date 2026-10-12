@@ -9,6 +9,29 @@ import {
 } from "@/lib/phone-auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+const COUNTRIES = [
+  { code: "IN", name: "India", dial: "+91", flag: "🇮🇳" },
+  { code: "US", name: "United States", dial: "+1", flag: "🇺🇸" },
+  { code: "GB", name: "United Kingdom", dial: "+44", flag: "🇬🇧" },
+  { code: "AE", name: "UAE", dial: "+971", flag: "🇦🇪" },
+  { code: "SA", name: "Saudi Arabia", dial: "+966", flag: "🇸🇦" },
+  { code: "PK", name: "Pakistan", dial: "+92", flag: "🇵🇰" },
+  { code: "BD", name: "Bangladesh", dial: "+880", flag: "🇧🇩" },
+  { code: "NP", name: "Nepal", dial: "+977", flag: "🇳🇵" },
+  { code: "LK", name: "Sri Lanka", dial: "+94", flag: "🇱🇰" },
+  { code: "NG", name: "Nigeria", dial: "+234", flag: "🇳🇬" },
+  { code: "ID", name: "Indonesia", dial: "+62", flag: "🇮🇩" },
+  { code: "PH", name: "Philippines", dial: "+63", flag: "🇵🇭" },
+  { code: "BR", name: "Brazil", dial: "+55", flag: "🇧🇷" },
+  { code: "RU", name: "Russia", dial: "+7", flag: "🇷🇺" },
+  { code: "DE", name: "Germany", dial: "+49", flag: "🇩🇪" },
+  { code: "FR", name: "France", dial: "+33", flag: "🇫🇷" },
+  { code: "TR", name: "Turkey", dial: "+90", flag: "🇹🇷" },
+  { code: "CA", name: "Canada", dial: "+1", flag: "🇨🇦" },
+  { code: "AU", name: "Australia", dial: "+61", flag: "🇦🇺" },
+];
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -72,7 +95,10 @@ function PhoneSignIn() {
   const sendPassword = useServerFn(submitPhonePassword);
 
   const [step, setStep] = useState<Step>("phone");
-  const [phone, setPhone] = useState("+91");
+  const [country, setCountry] = useState("IN");
+  const [local, setLocal] = useState("");
+  const dial = COUNTRIES.find((c) => c.code === country)?.dial ?? "+91";
+  const phone = `${dial}${local.replace(/\D/g, "")}`;
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"otp" | "saved">("otp");
@@ -210,16 +236,33 @@ function PhoneSignIn() {
   return (
     <form onSubmit={onPhone} className="space-y-4">
       <div className="space-y-2">
+        <Label>Country</Label>
+        <Select value={country} onValueChange={setCountry}>
+          <SelectTrigger aria-label="Country"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {COUNTRIES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>
+                {c.flag} {c.name} ({c.dial})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="phone">Telegram phone number</Label>
-        <Input
-          id="phone"
-          type="tel"
-          autoComplete="tel"
-          required
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+919876543210"
-        />
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 shrink-0 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">{dial}</span>
+          <Input
+            id="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
+            required
+            value={local}
+            onChange={(e) => setLocal(e.target.value.replace(/[^\d\s]/g, ""))}
+            placeholder="98765 43210"
+          />
+        </div>
       </div>
       <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={busy}>
         {busy ? "Sending…" : "Send code on Telegram"}

@@ -34,7 +34,6 @@ const nav = [
   { to: "/app/login", label: "Telegram", icon: Phone, exact: false },
   { to: "/app/channels", label: "Channels", icon: Radio, exact: false },
   { to: "/app/logs", label: "Activity", icon: ScrollText, exact: false },
-  { to: "/app/health", label: "Health", icon: Activity, exact: false },
   { to: "/app/rewards", label: "Rewards", icon: Gift, exact: false },
   { to: "/app/wallet", label: "Wallet", icon: Wallet, exact: false },
   { to: "/app/plan", label: "Plan", icon: CreditCard, exact: false },
@@ -56,6 +55,7 @@ function AppLayout() {
   const navItems = adminInfo?.isAdmin
     ? [
         ...nav,
+        { to: "/app/health", label: "Health", icon: Activity, exact: false },
         { to: "/app/worker", label: "Worker", icon: ServerCog, exact: false },
         { to: "/app/admin", label: "Admin", icon: Shield, exact: false },
       ]
