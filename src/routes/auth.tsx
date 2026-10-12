@@ -65,7 +65,7 @@ function AuthPage() {
   );
 }
 
-type Step = "phone" | "sending" | "code" | "password" | "verifying";
+type Step = "phone" | "code" | "password" | "verifying";
 
 function PhoneSignIn() {
   const start = useServerFn(startPhoneSignIn);
@@ -161,12 +161,8 @@ function PhoneSignIn() {
     }
   }
 
-  if (step === "sending" || step === "verifying") {
-    return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
-        {step === "sending" ? "Sending code to your Telegram…" : "Verifying…"}
-      </p>
-    );
+  if (step === "verifying") {
+    return <p className="py-6 text-center text-sm text-muted-foreground">Verifying…</p>;
   }
 
   if (step === "code") {
