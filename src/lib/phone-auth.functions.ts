@@ -108,6 +108,12 @@ export const startPhoneSignIn = createServerFn({ method: "POST" })
         .maybeSingle();
       userId = (authRow as { user_id: string } | null)?.user_id ?? null;
     }
+    if (userId) {
+      const { getBlockedUserIds } = await import("./profile.functions");
+      if ((await getBlockedUserIds(supabaseAdmin)).has(userId)) {
+        throw new Error("This account has been blocked. Please contact support.");
+      }
+    }
     if (!userId) {
       userId = crypto.randomUUID();
       const name = "+" + digits;
