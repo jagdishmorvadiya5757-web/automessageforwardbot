@@ -8,6 +8,7 @@ import {
   listLicenseKeys,
   listUsersAdmin,
   setUserPlan,
+  setUserBlocked,
 } from "@/lib/license.functions";
 import {
   createClaimCode,
