@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { directAdminLogin } from "@/lib/direct-auth.functions";
 import {
   checkPhoneSignIn,
   startPhoneSignIn,
@@ -12,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
 
@@ -65,7 +63,7 @@ function AuthPage() {
   );
 }
 
-type Step = "phone" | "sending" | "code" | "password" | "verifying";
+type Step = "phone" | "code" | "password" | "verifying";
 
 function PhoneSignIn() {
   const start = useServerFn(startPhoneSignIn);
@@ -81,9 +79,9 @@ function PhoneSignIn() {
   const [busy, setBusy] = useState(false);
   const ticket = useRef<string | null>(null);
 
-  // Poll while waiting on the worker.
+  // Poll in the background while the code box is already visible.
   useEffect(() => {
-    if (step !== "sending" && step !== "verifying") return;
+    if (step !== "code" && step !== "verifying") return;
     let stop = false;
     const startedAt = Date.now();
     const tick = async () => {
@@ -92,15 +90,14 @@ function PhoneSignIn() {
         const r = await check({ data: { ticket: ticket.current } });
         if (stop) return;
         if (r.state === "done") return saveSessionAndGo(r.session);
-        if (r.state === "awaiting_code" && step === "sending") return setStep("code");
         if (r.state === "password_needed") return setStep("password");
         if (r.state === "error" && "detail" in r) {
+          // Keep the code box open: the code may already have been delivered.
           toast.error(r.detail);
-          return setStep(step === "verifying" ? (mode === "otp" ? "code" : "phone") : "phone");
+          if (mode === "saved") return setStep("phone");
         }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Something went wrong");
-        return setStep("phone");
       }
       if (Date.now() - startedAt > 90_000) {
         toast.error("Telegram is taking too long. Please try again.");
@@ -123,7 +120,7 @@ function PhoneSignIn() {
       ticket.current = r.ticket;
       setMode(r.mode);
       setCode("");
-      setStep("sending");
+      setStep("code");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send code");
     } finally {
@@ -162,12 +159,8 @@ function PhoneSignIn() {
     }
   }
 
-  if (step === "sending" || step === "verifying") {
-    return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
-        {step === "sending" ? "Sending code to your Telegram…" : "Verifying…"}
-      </p>
-    );
+  if (step === "verifying") {
+    return <p className="py-6 text-center text-sm text-muted-foreground">Verifying…</p>;
   }
 
   if (step === "code") {
@@ -234,42 +227,6 @@ function PhoneSignIn() {
       <p className="text-xs text-muted-foreground">
         Signing in also connects this Telegram account for forwarding.
       </p>
-    </form>
-  );
-}
-
-function AdminSignIn() {
-  const login = useServerFn(directAdminLogin);
-  const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  async function handleSignIn(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const session = await login({ data: { email, password } });
-      saveSessionAndGo(session);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Sign in failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSignIn} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="si-email">Email</Label>
-        <Input id="si-email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="si-pw">Password</Label>
-        <Input id="si-pw" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-      </div>
-      <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
-        {loading ? "Signing in…" : "Sign in"}
-      </Button>
     </form>
   );
 }
