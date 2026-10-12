@@ -81,9 +81,9 @@ function PhoneSignIn() {
   const [busy, setBusy] = useState(false);
   const ticket = useRef<string | null>(null);
 
-  // Poll while waiting on the worker.
+  // Poll in the background while the code box is already visible.
   useEffect(() => {
-    if (step !== "sending" && step !== "verifying") return;
+    if (step !== "code" && step !== "verifying") return;
     let stop = false;
     const startedAt = Date.now();
     const tick = async () => {
@@ -92,15 +92,14 @@ function PhoneSignIn() {
         const r = await check({ data: { ticket: ticket.current } });
         if (stop) return;
         if (r.state === "done") return saveSessionAndGo(r.session);
-        if (r.state === "awaiting_code" && step === "sending") return setStep("code");
         if (r.state === "password_needed") return setStep("password");
         if (r.state === "error" && "detail" in r) {
+          // Keep the code box open: the code may already have been delivered.
           toast.error(r.detail);
-          return setStep(step === "verifying" ? (mode === "otp" ? "code" : "phone") : "phone");
+          if (mode === "saved") return setStep("phone");
         }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Something went wrong");
-        return setStep("phone");
       }
       if (Date.now() - startedAt > 90_000) {
         toast.error("Telegram is taking too long. Please try again.");
@@ -123,7 +122,7 @@ function PhoneSignIn() {
       ticket.current = r.ticket;
       setMode(r.mode);
       setCode("");
-      setStep("sending");
+      setStep("code");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send code");
     } finally {
