@@ -1,15 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { clearStoredSession, getStoredUser } from "@/lib/direct-session";
 import { getMySubscription } from "@/lib/subscription.functions";
+import { getMyProfile, updateMyProfile } from "@/lib/profile.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
@@ -35,6 +37,9 @@ import {
   Trash2,
   LogOut,
   ChevronRight,
+  Pencil,
+  Camera,
+  Loader2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
@@ -59,12 +64,21 @@ function ProfilePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fetchSub = useServerFn(getMySubscription);
+  const fetchProfile = useServerFn(getMyProfile);
+  const saveProfile = useServerFn(updateMyProfile);
   const [email, setEmail] = useState<string | null>(null);
   const [botActive, setBotActive] = useState(true);
   const [boost, setBoost] = useState(false);
   const [alerts, setAlerts] = useState(true);
   const [reminder, setReminder] = useState(false);
   const [tz, setTz] = useState("UTC");
+
+  // Profile editor state
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setEmail(getStoredUser()?.email ?? null);
@@ -80,6 +94,53 @@ function ProfilePage() {
     queryFn: () => fetchSub(),
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: () => fetchProfile(),
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name ?? "");
+      setProfileEmail(profile.email ?? "");
+      setAvatar(profile.avatarUrl ?? null);
+    }
+  }, [profile]);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      saveProfile({ data: { name: name.trim(), email: profileEmail.trim(), avatarUrl: avatar } }),
+    onSuccess: () => {
+      toast.success("Profile saved");
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["my-profile"] });
+    },
+    onError: (e) => toast.error("Save failed", { description: (e as Error).message }),
+  });
+
+  function pickAvatar(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 256;
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(size / img.width, size / img.height, 1);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setAvatar(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function signOut() {
     await qc.cancelQueries();
     qc.clear();
@@ -94,16 +155,119 @@ function ProfilePage() {
         <p className="text-sm text-muted-foreground">Bot configuration, wallet and support.</p>
       </div>
 
+      {/* Profile */}
       <Card>
-        <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base">{email ?? "Account"}</CardTitle>
-            <CardDescription className="capitalize">{sub?.plan ?? "—"} plan</CardDescription>
-          </div>
+        <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pb-2">
+          <CardTitle className="flex min-w-0 items-center gap-2 text-base">
+            <UserCog className="h-4 w-4 shrink-0 text-primary" /> My profile
+          </CardTitle>
           <Badge variant={sub?.isActive ? "default" : "destructive"} className="shrink-0">
             {sub?.isActive ? "Active" : "Expired"}
           </Badge>
         </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt="Profile"
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-xl font-semibold text-primary">
+                  {(name || email || "?").charAt(0).toUpperCase()}
+                </div>
+              )}
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow"
+                  aria-label="Change photo"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => pickAvatar(e.target.files?.[0])}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-medium text-foreground">
+                {profile?.name || email || "Account"}
+              </p>
+              <p className="truncate text-sm text-muted-foreground">
+                {profile?.phone ? `+${profile.phone}` : email ?? ""}
+              </p>
+              <p className="text-xs capitalize text-muted-foreground">
+                {sub?.plan ?? "—"} plan
+                {sub?.daysLeft != null ? ` · ${sub.daysLeft} days left` : ""}
+              </p>
+            </div>
+            {!editing && (
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => setEditing(true)}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+              </Button>
+            )}
+          </div>
+
+          {editing && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="pf-name">Name</Label>
+                <Input
+                  id="pf-name"
+                  value={name}
+                  maxLength={60}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="pf-phone">Phone number</Label>
+                <Input id="pf-phone" value={profile?.phone ? `+${profile.phone}` : "—"} disabled />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="pf-email">Email (for feature updates)</Label>
+                <Input
+                  id="pf-email"
+                  type="email"
+                  value={profileEmail}
+                  maxLength={255}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={saveMut.isPending || !name.trim()}
+                  onClick={() => saveMut.mutate()}
+                >
+                  {saveMut.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditing(false);
+                    setName(profile?.name ?? "");
+                    setProfileEmail(profile?.email ?? "");
+                    setAvatar(profile?.avatarUrl ?? null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {/* Bot & system */}
