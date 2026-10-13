@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Copy, Plus, Trash2, Link2, Ban, CheckCircle2, Search } from "lucide-react";
+import { Copy, Plus, Trash2, Link2, Ban, CheckCircle2, Search, ArrowLeft } from "lucide-react";
+import { AdminHome } from "@/components/admin/AdminHome";
 
 export const Route = createFileRoute("/_authenticated/app/admin")({
   component: AdminPage,
@@ -60,6 +61,7 @@ function AdminPage() {
   const setPlanFn = useServerFn(setUserPlan);
   const blockFn = useServerFn(setUserBlocked);
   const [userSearch, setUserSearch] = useState("");
+  const [section, setSection] = useState<string>("home");
   const plansFn = useServerFn(listAllPlans);
   const claimsFn = useServerFn(listClaimCodes);
 
@@ -139,21 +141,29 @@ function AdminPage() {
     ? allUsers.filter((u) => `${u.name ?? ""} ${u.phone ?? ""} ${u.userId}`.toLowerCase().includes(q))
     : allUsers;
 
+  if (section === "home") {
+    return <AdminHome onOpen={setSection} />;
+  }
+
+  const titles: Record<string, string> = {
+    plans: "Plans",
+    claims: "Claim links",
+    keys: "License keys",
+    users: "Users",
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Admin</h1>
-        <p className="text-sm text-muted-foreground">
-          Edit public plans, issue keys and manage subscriptions.
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => setSection("home")}>
+          <ArrowLeft className="mr-1 h-4 w-4" /> Dashboard
+        </Button>
+        <h1 className="text-xl font-semibold">{titles[section]}</h1>
       </div>
 
-      <Tabs defaultValue="users">
-        <TabsList className="flex w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <Tabs value={section} onValueChange={setSection}>
+        <TabsList className="hidden">
           <TabsTrigger value="plans">Plans</TabsTrigger>
-          <TabsTrigger value="claims">Claim links</TabsTrigger>
-          <TabsTrigger value="keys">License keys</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
         </TabsList>
 
         <TabsContent value="plans" className="space-y-4 pt-4">
