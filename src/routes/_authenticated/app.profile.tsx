@@ -1,15 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { clearStoredSession, getStoredUser } from "@/lib/direct-session";
 import { getMySubscription } from "@/lib/subscription.functions";
+import { getMyProfile, updateMyProfile } from "@/lib/profile.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
@@ -35,6 +37,9 @@ import {
   Trash2,
   LogOut,
   ChevronRight,
+  Pencil,
+  Camera,
+  Loader2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
