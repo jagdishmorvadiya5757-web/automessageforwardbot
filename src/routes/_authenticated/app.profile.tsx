@@ -155,16 +155,119 @@ function ProfilePage() {
         <p className="text-sm text-muted-foreground">Bot configuration, wallet and support.</p>
       </div>
 
+      {/* Profile */}
       <Card>
-        <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base">{email ?? "Account"}</CardTitle>
-            <CardDescription className="capitalize">{sub?.plan ?? "—"} plan</CardDescription>
-          </div>
+        <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pb-2">
+          <CardTitle className="flex min-w-0 items-center gap-2 text-base">
+            <UserCog className="h-4 w-4 shrink-0 text-primary" /> My profile
+          </CardTitle>
           <Badge variant={sub?.isActive ? "default" : "destructive"} className="shrink-0">
             {sub?.isActive ? "Active" : "Expired"}
           </Badge>
         </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt="Profile"
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-xl font-semibold text-primary">
+                  {(name || email || "?").charAt(0).toUpperCase()}
+                </div>
+              )}
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow"
+                  aria-label="Change photo"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => pickAvatar(e.target.files?.[0])}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-medium text-foreground">
+                {profile?.name || email || "Account"}
+              </p>
+              <p className="truncate text-sm text-muted-foreground">
+                {profile?.phone ? `+${profile.phone}` : email ?? ""}
+              </p>
+              <p className="text-xs capitalize text-muted-foreground">
+                {sub?.plan ?? "—"} plan
+                {sub?.daysLeft != null ? ` · ${sub.daysLeft} days left` : ""}
+              </p>
+            </div>
+            {!editing && (
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => setEditing(true)}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+              </Button>
+            )}
+          </div>
+
+          {editing && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="pf-name">Name</Label>
+                <Input
+                  id="pf-name"
+                  value={name}
+                  maxLength={60}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="pf-phone">Phone number</Label>
+                <Input id="pf-phone" value={profile?.phone ? `+${profile.phone}` : "—"} disabled />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="pf-email">Email (for feature updates)</Label>
+                <Input
+                  id="pf-email"
+                  type="email"
+                  value={profileEmail}
+                  maxLength={255}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={saveMut.isPending || !name.trim()}
+                  onClick={() => saveMut.mutate()}
+                >
+                  {saveMut.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditing(false);
+                    setName(profile?.name ?? "");
+                    setProfileEmail(profile?.email ?? "");
+                    setAvatar(profile?.avatarUrl ?? null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {/* Bot & system */}
