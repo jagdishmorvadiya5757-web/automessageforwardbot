@@ -64,12 +64,21 @@ function ProfilePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fetchSub = useServerFn(getMySubscription);
+  const fetchProfile = useServerFn(getMyProfile);
+  const saveProfile = useServerFn(updateMyProfile);
   const [email, setEmail] = useState<string | null>(null);
   const [botActive, setBotActive] = useState(true);
   const [boost, setBoost] = useState(false);
   const [alerts, setAlerts] = useState(true);
   const [reminder, setReminder] = useState(false);
   const [tz, setTz] = useState("UTC");
+
+  // Profile editor state
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setEmail(getStoredUser()?.email ?? null);
@@ -84,6 +93,53 @@ function ProfilePage() {
     queryKey: ["my-subscription"],
     queryFn: () => fetchSub(),
   });
+
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: () => fetchProfile(),
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name ?? "");
+      setProfileEmail(profile.email ?? "");
+      setAvatar(profile.avatarUrl ?? null);
+    }
+  }, [profile]);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      saveProfile({ data: { name: name.trim(), email: profileEmail.trim(), avatarUrl: avatar } }),
+    onSuccess: () => {
+      toast.success("Profile saved");
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["my-profile"] });
+    },
+    onError: (e) => toast.error("Save failed", { description: (e as Error).message }),
+  });
+
+  function pickAvatar(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 256;
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(size / img.width, size / img.height, 1);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setAvatar(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function signOut() {
     await qc.cancelQueries();
