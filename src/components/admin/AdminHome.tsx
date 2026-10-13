@@ -112,7 +112,7 @@ export function AdminHome({ onOpen }: Props) {
             <p className="text-xs text-muted-foreground">Worker, logs, copy report</p>
           </Link>
           <Link
-            to="/app/activity"
+            to="/app/logs"
             className="rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/60 hover:bg-accent"
           >
             <Send className="h-6 w-6 text-primary" />
