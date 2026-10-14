@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/lib/oracle-auth-middleware";
+import { loadEntitlements, gateRule } from "@/lib/plan-limits.server";
+import type { Entitlements } from "@/lib/plan-limits";
+
+export type Replacement = { from: string; to: string };
 
 export type EndpointType = "channel" | "bot";
 
@@ -36,6 +40,10 @@ export type RuleRow = {
   backfill_status: string;
   backfill_done_count: number;
   backfill_detail: string | null;
+  header_text: string | null;
+  footer_text: string | null;
+  replacements: Replacement[];
+  media_filter: string;
 };
 
 const BASE_RULE_COLUMNS =
@@ -47,8 +55,11 @@ const SCHEDULE_COLUMNS =
 const BACKFILL_COLUMNS =
   "only_video_with_caption, backfill_from, backfill_to, backfill_status, backfill_done_count, backfill_detail";
 
+const EXTRA_COLUMNS = "header_text, footer_text, replacements, media_filter";
+
 /** Column sets tried in order — Oracle DBs missing a migration fall back gracefully. */
 const COLUMN_SETS = [
+  `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}, ${BACKFILL_COLUMNS}, ${EXTRA_COLUMNS}`,
   `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}, ${BACKFILL_COLUMNS}`,
   `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`,
   BASE_RULE_COLUMNS,
@@ -69,6 +80,10 @@ const DEFAULTS = {
   backfill_status: "idle",
   backfill_done_count: 0,
   backfill_detail: null,
+  header_text: null,
+  footer_text: null,
+  replacements: [],
+  media_filter: "all",
 };
 
 const withDefaults = (rows: any[]): RuleRow[] =>
@@ -139,7 +154,17 @@ type RuleInput = {
   backfill_from?: string | null;
   backfill_to?: string | null;
   run_backfill?: boolean;
+  header_text?: string | null;
+  footer_text?: string | null;
+  replacements?: Replacement[];
+  media_filter?: string;
 };
+
+const MEDIA_FILTERS = ["all", "text", "photo", "video", "video_caption", "document", "audio"];
+
+export const getMyEntitlements = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<Entitlements> => loadEntitlements(context.userId));
 
 export const saveRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -150,10 +175,48 @@ export const saveRule = createServerFn({ method: "POST" })
     if (input.run_backfill && !input.backfill_from) {
       throw new Error("Pick a start date for the history backfill.");
     }
-    return { ...input, source, destination };
+    const media_filter = MEDIA_FILTERS.includes(input.media_filter ?? "all") ? input.media_filter ?? "all" : "all";
+    const replacements = (input.replacements ?? [])
+      .map((r) => ({ from: String(r.from ?? "").slice(0, 500), to: String(r.to ?? "").slice(0, 500) }))
+      .filter((r) => r.from)
+      .slice(0, 30);
+    return {
+      ...input,
+      source,
+      destination,
+      media_filter,
+      replacements,
+      header_text: (input.header_text ?? "").slice(0, 1000) || null,
+      footer_text: (input.footer_text ?? "").slice(0, 1000) || null,
+    };
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ent = await loadEntitlements(context.userId);
+    if (ent.tier === "expired") throw new Error("Your plan has expired. Renew to add or edit rules.");
+    if (!data.id) {
+      const { count } = await supabaseAdmin
+        .from("forwarding_rules")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", context.userId);
+      if ((count ?? 0) >= ent.maxRules) {
+        throw new Error(`${ent.label} allows ${ent.maxRules} rules. Upgrade to add more.`);
+      }
+    }
+    if (data.run_backfill && !ent.backfill) {
+      throw new Error("Old posts (backfill) needs Premium Pro.");
+    }
+    const gated = gateRule(
+      {
+        header_text: data.header_text,
+        footer_text: data.footer_text,
+        replacements: data.replacements,
+        media_filter: data.media_filter,
+        only_video_with_caption: data.media_filter === "video_caption" || !!data.only_video_with_caption,
+        schedule_enabled: data.schedule_enabled ?? false,
+      },
+      ent,
+    );
 
     const base = {
       user_id: context.userId,
@@ -168,14 +231,14 @@ export const saveRule = createServerFn({ method: "POST" })
       forward_delay: data.forward_delay,
     };
     const schedule = {
-      schedule_enabled: data.schedule_enabled ?? false,
+      schedule_enabled: gated.schedule_enabled,
       schedule_start: data.schedule_start || null,
       schedule_end: data.schedule_end || null,
       schedule_days: data.schedule_days ?? [],
       schedule_tz_offset: data.schedule_tz_offset ?? 0,
     };
     const backfill: Record<string, unknown> = {
-      only_video_with_caption: data.only_video_with_caption ?? false,
+      only_video_with_caption: gated.only_video_with_caption,
       backfill_from: data.backfill_from || null,
       backfill_to: data.backfill_to || null,
     };
@@ -185,7 +248,14 @@ export const saveRule = createServerFn({ method: "POST" })
       backfill.backfill_detail = null;
     }
 
+    const extra = {
+      header_text: gated.header_text,
+      footer_text: gated.footer_text,
+      replacements: gated.replacements,
+      media_filter: gated.media_filter,
+    };
     const bodies = [
+      { ...base, ...schedule, ...backfill, ...extra },
       { ...base, ...schedule, ...backfill },
       { ...base, ...schedule },
       base,
@@ -216,6 +286,8 @@ export const startBackfill = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
+    const ent = await loadEntitlements(context.userId);
+    if (!ent.backfill) throw new Error("Old posts (backfill) needs Premium Pro.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin.from("forwarding_rules") as any)
       .update({
@@ -251,6 +323,10 @@ export const setRuleEnabled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; enabled: boolean }) => input)
   .handler(async ({ data, context }) => {
+    if (data.enabled) {
+      const ent = await loadEntitlements(context.userId);
+      if (ent.tier === "expired") throw new Error("Your plan has expired. Renew to turn rules on.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("forwarding_rules")

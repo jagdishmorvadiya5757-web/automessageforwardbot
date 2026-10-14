@@ -28,6 +28,7 @@ import { Route as AuthenticatedAppRewardsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppWalletRouteImport } from './routes/_authenticated/app.wallet'
 import { Route as AuthenticatedAppWorkerRouteImport } from './routes/_authenticated/app.worker'
 import { Route as ApiPublicOracleAuthSplatRouteImport } from './routes/api/public/oracle-auth.$'
+import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/public/razorpay/webhook'
 import { Route as ApiPublicWorkerBackfillRouteImport } from './routes/api/public/worker/backfill'
 import { Route as ApiPublicWorkerChannelsRouteImport } from './routes/api/public/worker/channels'
 import { Route as ApiPublicWorkerForwardSlotsRouteImport } from './routes/api/public/worker/forward-slots'
@@ -135,6 +136,12 @@ const ApiPublicOracleAuthSplatRoute =
     path: '/api/public/oracle-auth/$',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRazorpayWebhookRoute =
+  ApiPublicRazorpayWebhookRouteImport.update({
+    id: '/api/public/razorpay/webhook',
+    path: '/api/public/razorpay/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkerBackfillRoute = ApiPublicWorkerBackfillRouteImport.update({
   id: '/api/public/worker/backfill',
   path: '/api/public/worker/backfill',
@@ -209,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/oracle-auth/$': typeof ApiPublicOracleAuthSplatRoute
+  '/api/public/razorpay/webhook': typeof ApiPublicRazorpayWebhookRoute
   '/api/public/worker/backfill': typeof ApiPublicWorkerBackfillRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
@@ -238,6 +246,7 @@ export interface FileRoutesByTo {
   '/app/worker': typeof AuthenticatedAppWorkerRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/oracle-auth/$': typeof ApiPublicOracleAuthSplatRoute
+  '/api/public/razorpay/webhook': typeof ApiPublicRazorpayWebhookRoute
   '/api/public/worker/backfill': typeof ApiPublicWorkerBackfillRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
@@ -270,6 +279,7 @@ export interface FileRoutesById {
   '/_authenticated/app/worker': typeof AuthenticatedAppWorkerRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/oracle-auth/$': typeof ApiPublicOracleAuthSplatRoute
+  '/api/public/razorpay/webhook': typeof ApiPublicRazorpayWebhookRoute
   '/api/public/worker/backfill': typeof ApiPublicWorkerBackfillRoute
   '/api/public/worker/channels': typeof ApiPublicWorkerChannelsRoute
   '/api/public/worker/forward-slots': typeof ApiPublicWorkerForwardSlotsRoute
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/app/worker'
     | '/app/'
     | '/api/public/oracle-auth/$'
+    | '/api/public/razorpay/webhook'
     | '/api/public/worker/backfill'
     | '/api/public/worker/channels'
     | '/api/public/worker/forward-slots'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/app/worker'
     | '/app'
     | '/api/public/oracle-auth/$'
+    | '/api/public/razorpay/webhook'
     | '/api/public/worker/backfill'
     | '/api/public/worker/channels'
     | '/api/public/worker/forward-slots'
@@ -362,6 +374,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/worker'
     | '/_authenticated/app/'
     | '/api/public/oracle-auth/$'
+    | '/api/public/razorpay/webhook'
     | '/api/public/worker/backfill'
     | '/api/public/worker/channels'
     | '/api/public/worker/forward-slots'
@@ -381,6 +394,7 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   FfControl7q9xRoute: typeof FfControl7q9xRoute
   ApiPublicOracleAuthSplatRoute: typeof ApiPublicOracleAuthSplatRoute
+  ApiPublicRazorpayWebhookRoute: typeof ApiPublicRazorpayWebhookRoute
   ApiPublicWorkerBackfillRoute: typeof ApiPublicWorkerBackfillRoute
   ApiPublicWorkerChannelsRoute: typeof ApiPublicWorkerChannelsRoute
   ApiPublicWorkerForwardSlotsRoute: typeof ApiPublicWorkerForwardSlotsRoute
@@ -528,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOracleAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/razorpay/webhook': {
+      id: '/api/public/razorpay/webhook'
+      path: '/api/public/razorpay/webhook'
+      fullPath: '/api/public/razorpay/webhook'
+      preLoaderRoute: typeof ApiPublicRazorpayWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/worker/backfill': {
       id: '/api/public/worker/backfill'
       path: '/api/public/worker/backfill'
@@ -652,6 +673,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   FfControl7q9xRoute: FfControl7q9xRoute,
   ApiPublicOracleAuthSplatRoute: ApiPublicOracleAuthSplatRoute,
+  ApiPublicRazorpayWebhookRoute: ApiPublicRazorpayWebhookRoute,
   ApiPublicWorkerBackfillRoute: ApiPublicWorkerBackfillRoute,
   ApiPublicWorkerChannelsRoute: ApiPublicWorkerChannelsRoute,
   ApiPublicWorkerForwardSlotsRoute: ApiPublicWorkerForwardSlotsRoute,
