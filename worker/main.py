@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -471,12 +472,13 @@ async def run_backfill(rt: UserRuntime, rule: dict):
             for _attempt in range(5):
                 try:
                     media = getattr(message, "media", None)
+                    out_text = transform_text(text, rule, media is not None)
                     if media is not None:
-                        await rt.client.send_file(dest, file=media, caption=text or "")
+                        await rt.client.send_file(dest, file=media, caption=out_text or "")
                     else:
-                        if not (text or "").strip():
+                        if not (out_text or "").strip():
                             break
-                        await rt.client.send_message(dest, text)
+                        await rt.client.send_message(dest, out_text)
                     sent = True
                     break
                 except FloodWaitError as e:
@@ -584,15 +586,66 @@ def is_video_message(message) -> bool:
     return mime.startswith("video/")
 
 
+def media_kind(message) -> str:
+    if message is None or getattr(message, "media", None) is None:
+        return "text"
+    if getattr(message, "photo", None):
+        return "photo"
+    if is_video_message(message):
+        return "video"
+    if getattr(message, "voice", None) or getattr(message, "audio", None):
+        return "audio"
+    if getattr(message, "document", None):
+        return "document"
+    return "other"
+
+
 def media_reason(message, rule: dict) -> Optional[str]:
     """None when the message passes the media filters, else the skip reason."""
-    if not rule.get("only_video_with_caption"):
+    mode = str(rule.get("media_filter") or "all").lower()
+    if mode == "all" and rule.get("only_video_with_caption"):
+        mode = "video_caption"
+    if mode == "all":
         return None
-    if not is_video_message(message):
-        return "not a video"
-    if not (message_text(message) or "").strip():
-        return "video has no caption"
+    kind = media_kind(message)
+    if mode == "video_caption":
+        if kind != "video":
+            return f"not a video ({kind})"
+        if not (message_text(message) or "").strip():
+            return "video has no caption"
+        return None
+    if kind != mode:
+        return f"only {mode} allowed (got {kind})"
     return None
+
+
+URL_RE = re.compile(r"(?:https?://|t\.me/|www\.)\S+", re.IGNORECASE)
+CAPTION_LIMIT = 1024
+TEXT_LIMIT = 4096
+
+
+def transform_text(text: str, rule: dict, has_media: bool = False) -> str:
+    """Link replace + header/footer. Plan gating is done by the API feed."""
+    out = text or ""
+    for item in rule.get("replacements") or []:
+        if not isinstance(item, dict):
+            continue
+        src = str(item.get("from") or "")
+        dst = str(item.get("to") or "")
+        if not src:
+            continue
+        if src == "__ALL_LINKS__":
+            out = URL_RE.sub(dst, out)
+        else:
+            out = out.replace(src, dst)
+    header = str(rule.get("header_text") or "").strip()
+    footer = str(rule.get("footer_text") or "").strip()
+    if header:
+        out = f"{header}\n\n{out}" if out.strip() else header
+    if footer:
+        out = f"{out}\n\n{footer}" if out.strip() else footer
+    limit = CAPTION_LIMIT if has_media else TEXT_LIMIT
+    return out[:limit]
 
 
 
@@ -765,7 +818,9 @@ def make_message_handler(rt: UserRuntime):
                 "rule_id": rule["id"],
                 "source": rule["source"],
                 "destination": rule["destination"],
-                "text": text,
+                "text": transform_text(
+                    text, rule, getattr(event.message, "media", None) is not None
+                ),
                 "message": event.message,
                 "msg_ref": str(event.message.id),
                 "delay": rule.get("forward_delay") or 0,
