@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { resolveWorkerUser } from "@/integrations/supabase/worker-auth.server";
+import { loadEntitlements, gateRule } from "@/lib/plan-limits.server";
 
 const BASE_RULE_COLUMNS =
   "id, name, source, source_type, destination, destination_type, enabled, include_keywords, exclude_keywords, forwarded_count, max_forward_count, forward_delay";
@@ -10,7 +11,10 @@ const SCHEDULE_COLUMNS =
 const BACKFILL_COLUMNS =
   "only_video_with_caption, backfill_from, backfill_to, backfill_status, backfill_done_count";
 
+const EXTRA_COLUMNS = "header_text, footer_text, replacements, media_filter";
+
 const COLUMN_SETS = [
+  `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}, ${BACKFILL_COLUMNS}, ${EXTRA_COLUMNS}`,
   `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}, ${BACKFILL_COLUMNS}`,
   `${BASE_RULE_COLUMNS}, ${SCHEDULE_COLUMNS}`,
   BASE_RULE_COLUMNS,
@@ -27,6 +31,10 @@ const DEFAULTS = {
   backfill_to: null,
   backfill_status: "idle",
   backfill_done_count: 0,
+  header_text: null,
+  footer_text: null,
+  replacements: [] as unknown[],
+  media_filter: "all",
 };
 
 const isMissingColumn = (message?: string | null) =>
@@ -41,6 +49,7 @@ export const Route = createFileRoute("/api/public/worker/rules")({
         if (!auth) return new Response("Unauthorized", { status: 401 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const ent = await loadEntitlements(auth.userId);
         let lastError = "Failed to load rules";
         for (const columns of COLUMN_SETS) {
           const { data, error } = await supabaseAdmin
@@ -49,10 +58,9 @@ export const Route = createFileRoute("/api/public/worker/rules")({
             .eq("user_id", auth.userId)
             .eq("enabled", true);
           if (!error) {
-            const rules = (data ?? []).map((rule) => ({
-              ...DEFAULTS,
-              ...(rule as unknown as Record<string, unknown>),
-            }));
+            const rules = (data ?? []).map((rule) =>
+              gateRule({ ...DEFAULTS, ...(rule as unknown as Record<string, unknown>) }, ent),
+            );
             return Response.json({ rules });
           }
           lastError = error.message;
