@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { DAILY_CODE_LIMIT, istDayStartIso } from "./phone-limit";
+import { DAILY_CODE_LIMIT, RESEND_WAIT_SECONDS, istDayStartIso } from "./phone-limit";
 
 // Phone + Telegram OTP sign-in for regular users.
 //  - "otp" mode: number not connected yet -> Telegram sends its official login
@@ -142,9 +142,21 @@ export const startPhoneSignIn = createServerFn({ method: "POST" })
       .select("updated_at, pending_action")
       .eq("user_id", userId)
       .maybeSingle();
-    if (prev?.pending_action && Date.now() - new Date(prev.updated_at).getTime() < 30_000) {
-      throw new Error("A code was just requested. Please wait 30 seconds.");
+    const { data: lastTry } = await supabaseAdmin
+      .from("phone_login_attempts" as never)
+      .select("created_at")
+      .eq("phone" as never, digits as never)
+      .order("created_at" as never, { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastAt = (lastTry as { created_at: string } | null)?.created_at;
+    const waitLeft = lastAt
+      ? Math.ceil((RESEND_WAIT_SECONDS * 1000 - (Date.now() - new Date(lastAt).getTime())) / 1000)
+      : 0;
+    if (waitLeft > 0) {
+      throw new Error(`Please wait ${waitLeft} seconds before asking for a new code.`);
     }
+    void prev;
 
     const { data: ses } = await supabaseAdmin
       .from("telegram_sessions")

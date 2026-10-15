@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/public/worker/login-state")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin
           .from("telegram_auth")
-          .select("status, pending_action, phone, code, two_fa_password, phone_code_hash")
+          .select("status, pending_action, phone, code, two_fa_password, phone_code_hash, updated_at")
           .eq("user_id", auth.userId)
           .maybeSingle();
 
