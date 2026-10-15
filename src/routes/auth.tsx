@@ -104,6 +104,36 @@ function PhoneSignIn() {
   const [mode, setMode] = useState<"otp" | "saved">("otp");
   const [busy, setBusy] = useState(false);
   const ticket = useRef<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
+  const [left, setLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+
+  async function requestCode() {
+    const r = await start({ data: { phone } });
+    ticket.current = r.ticket;
+    setMode(r.mode);
+    setLeft(r.remaining);
+    setCode("");
+    setResendIn(60);
+    setStep("code");
+  }
+
+  async function onResend() {
+    setBusy(true);
+    try {
+      await requestCode();
+      toast.success("New code requested — check Telegram");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not resend code");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Poll in the background while the code box is already visible.
   useEffect(() => {
@@ -126,8 +156,7 @@ function PhoneSignIn() {
         toast.error(e instanceof Error ? e.message : "Something went wrong");
       }
       if (Date.now() - startedAt > 90_000) {
-        toast.error("Telegram is taking too long. Please try again.");
-        return setStep("phone");
+        return; // keep the code box open; user can press Resend
       }
       setTimeout(tick, 2000);
     };
@@ -142,11 +171,7 @@ function PhoneSignIn() {
     e.preventDefault();
     setBusy(true);
     try {
-      const r = await start({ data: { phone } });
-      ticket.current = r.ticket;
-      setMode(r.mode);
-      setCode("");
-      setStep("code");
+      await requestCode();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send code");
     } finally {
@@ -211,6 +236,22 @@ function PhoneSignIn() {
         <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={busy}>
           {busy ? "Checking…" : "Verify & sign in"}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={busy || resendIn > 0 || left === 0}
+          onClick={onResend}
+        >
+          {left === 0
+            ? "No codes left today"
+            : resendIn > 0
+              ? `Resend code in ${resendIn}s`
+              : "Resend code"}
+        </Button>
+        {left !== null && (
+          <p className="text-center text-xs text-muted-foreground">{left} of 5 codes left today</p>
+        )}
         <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("phone")}>
           Change number
         </Button>

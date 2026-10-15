@@ -242,7 +242,10 @@ async def handle_login(rt: UserRuntime, state: dict):
     # next poll can still show the same action. Skip repeats — otherwise
     # request_code runs twice and Telegram answers with ResendCodeRequest,
     # which wipes the awaiting_code state and kicks the user back to start.
-    if action == rt.login_ctx.get("last_action"):
+    # Each new website request rewrites the row (new updated_at), so a resend
+    # is always treated as a fresh request and is never skipped.
+    action_key = f"{action}:{state.get('updated_at') or ''}"
+    if action_key == rt.login_ctx.get("last_action"):
         return
 
     if action == "request_code":
@@ -251,10 +254,16 @@ async def handle_login(rt: UserRuntime, state: dict):
             await post_login_status(rt.user_id, "error", "No phone provided")
             return
         try:
+            # Forget any earlier code so Telegram sends a brand-new one
+            # (otherwise Telethon calls ResendCodeRequest, which often fails).
+            try:
+                rt.client._phone_code_hash.pop(phone, None)
+            except Exception:
+                pass
             sent = await rt.client.send_code_request(phone)
             rt.login_ctx["phone"] = phone
             rt.login_ctx["phone_code_hash"] = sent.phone_code_hash
-            rt.login_ctx["last_action"] = action
+            rt.login_ctx["last_action"] = action_key
             await post_login_status(rt.user_id, "awaiting_code", phone_code_hash=sent.phone_code_hash)
         except Exception as e:
             await post_login_status(rt.user_id, "error", str(e))
@@ -281,7 +290,7 @@ async def handle_login(rt: UserRuntime, state: dict):
             await post_login_status(rt.user_id, "logged_in")
             await sync_channels(rt)
         except SessionPasswordNeededError:
-            rt.login_ctx["last_action"] = action
+            rt.login_ctx["last_action"] = action_key
             await post_login_status(rt.user_id, "password_needed")
         except Exception as e:
             await post_login_status(rt.user_id, "error", str(e))
@@ -307,7 +316,7 @@ async def handle_login(rt: UserRuntime, state: dict):
 
     # Mark handled so the next poll (which may still show the same action
     # until the API write lands) does not run it again.
-    rt.login_ctx["last_action"] = action
+    rt.login_ctx["last_action"] = action_key
 
 
 async def control_loop_for(rt: UserRuntime):
