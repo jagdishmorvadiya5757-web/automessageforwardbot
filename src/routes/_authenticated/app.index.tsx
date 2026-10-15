@@ -379,6 +379,7 @@ function RulesPage() {
                   </div>
                   <Switch
                     checked={form.schedule_enabled}
+                    disabled={!!ent && !ent.schedule}
                     onCheckedChange={(v) => setForm({ ...form, schedule_enabled: v })}
                   />
                 </div>
@@ -503,6 +504,7 @@ function RulesPage() {
                   </div>
                   <Switch
                     checked={form.run_backfill}
+                    disabled={!!ent && !ent.backfill}
                     onCheckedChange={(v) => setForm({ ...form, run_backfill: v })}
                   />
                 </div>
@@ -573,7 +575,9 @@ function RulesPage() {
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">Active rules</p>
+            <p className="text-xs text-muted-foreground">
+              Active rules{ent && ent.tier !== "admin" ? ` · ${rules.length}/${ent.maxRules} on ${ent.label}` : ""}
+            </p>
             <p className="text-2xl font-semibold text-foreground">{totals.active}</p>
           </CardContent>
         </Card>
