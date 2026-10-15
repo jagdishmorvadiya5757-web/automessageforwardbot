@@ -10,6 +10,7 @@ import {
   saveRule,
   setRuleEnabled,
   stopBackfill,
+  getMyEntitlements,
 
   type ChannelRow,
   type EndpointType,
@@ -36,8 +37,10 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { UPGRADE_HINT } from "@/lib/plan-limits";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown, Search, Sparkles } from "lucide-react";
+import { Plus, Trash2, Pencil, ArrowRight, RotateCcw, Check, ChevronsUpDown, Search, Sparkles, Lock } from "lucide-react";
 
 type Rule = RuleRow;
 type Channel = ChannelRow;
@@ -79,11 +82,47 @@ const empty = {
   schedule_end: "18:00",
   schedule_days: [] as number[],
   only_video_with_caption: false,
+  media_filter: "all",
+  header_text: "",
+  footer_text: "",
+  replace_all_links: "",
+  replace_pairs: "",
   backfill_from: "",
   backfill_to: "",
   run_backfill: false,
 };
 
+
+const MEDIA_OPTIONS = [
+  { value: "all", label: "All posts" },
+  { value: "text", label: "Text only" },
+  { value: "photo", label: "Photo only" },
+  { value: "video", label: "Video only" },
+  { value: "video_caption", label: "Video with caption" },
+  { value: "document", label: "Documents only" },
+  { value: "audio", label: "Audio / voice only" },
+];
+
+function buildReplacements(allLinks: string, pairs: string) {
+  const out: { from: string; to: string }[] = [];
+  if (allLinks.trim()) out.push({ from: "__ALL_LINKS__", to: allLinks.trim() });
+  for (const line of pairs.split("\n")) {
+    const idx = line.indexOf("=>");
+    if (idx < 0) continue;
+    const from = line.slice(0, idx).trim();
+    if (from) out.push({ from, to: line.slice(idx + 2).trim() });
+  }
+  return out;
+}
+
+function LockNote({ locked }: { locked: boolean }) {
+  if (!locked) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Lock className="h-3 w-3" /> {UPGRADE_HINT}
+    </p>
+  );
+}
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -96,6 +135,8 @@ function RulesPage() {
   const deleteRuleFn = useServerFn(deleteRule);
   const resetRuleCounterFn = useServerFn(resetRuleCounter);
   const stopBackfillFn = useServerFn(stopBackfill);
+  const entFn = useServerFn(getMyEntitlements);
+  const { data: ent } = useQuery({ queryKey: ["entitlements"], queryFn: () => entFn() });
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
@@ -134,7 +175,11 @@ function RulesPage() {
         schedule_end: form.schedule_enabled ? form.schedule_end : null,
         schedule_days: form.schedule_enabled ? form.schedule_days : [],
         schedule_tz_offset: -new Date().getTimezoneOffset(),
-        only_video_with_caption: form.only_video_with_caption,
+        only_video_with_caption: form.media_filter === "video_caption",
+        media_filter: form.media_filter,
+        header_text: form.header_text || null,
+        footer_text: form.footer_text || null,
+        replacements: buildReplacements(form.replace_all_links, form.replace_pairs),
         backfill_from: form.backfill_from || null,
         backfill_to: form.backfill_to || null,
         run_backfill: form.run_backfill && !!form.backfill_from,
@@ -198,6 +243,19 @@ function RulesPage() {
       schedule_end: r.schedule_end ?? "18:00",
       schedule_days: r.schedule_days ?? [],
       only_video_with_caption: r.only_video_with_caption ?? false,
+      media_filter:
+        r.media_filter && r.media_filter !== "all"
+          ? r.media_filter
+          : r.only_video_with_caption
+            ? "video_caption"
+            : "all",
+      header_text: r.header_text ?? "",
+      footer_text: r.footer_text ?? "",
+      replace_all_links: (r.replacements ?? []).find((x) => x.from === "__ALL_LINKS__")?.to ?? "",
+      replace_pairs: (r.replacements ?? [])
+        .filter((x) => x.from !== "__ALL_LINKS__")
+        .map((x) => `${x.from} => ${x.to}`)
+        .join("\n"),
       backfill_from: r.backfill_from ?? "",
       backfill_to: r.backfill_to ?? "",
       run_backfill: false,
@@ -321,6 +379,7 @@ function RulesPage() {
                   </div>
                   <Switch
                     checked={form.schedule_enabled}
+                    disabled={!!ent && !ent.schedule}
                     onCheckedChange={(v) => setForm({ ...form, schedule_enabled: v })}
                   />
                 </div>
@@ -381,19 +440,58 @@ function RulesPage() {
                 )}
               </div>
 
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <Label>Only video with caption</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Forward only posts that are a video and have a caption.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={form.only_video_with_caption}
-                    onCheckedChange={(v) => setForm({ ...form, only_video_with_caption: v })}
-                  />
-                </div>
+              <div className="space-y-2 rounded-lg border p-3">
+                <Label>Which posts to forward</Label>
+                <Select
+                  value={form.media_filter}
+                  onValueChange={(v) => setForm({ ...form, media_filter: v })}
+                  disabled={ent ? !ent.mediaFilter : false}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MEDIA_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <LockNote locked={!!ent && !ent.mediaFilter} />
+              </div>
+
+              <div className="space-y-2 rounded-lg border p-3">
+                <Label>Header & footer text</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="Text added on top of every post"
+                  value={form.header_text}
+                  disabled={!!ent && !ent.headerFooter}
+                  onChange={(e) => setForm({ ...form, header_text: e.target.value })}
+                />
+                <Textarea
+                  rows={2}
+                  placeholder="Text added at the bottom of every post"
+                  value={form.footer_text}
+                  disabled={!!ent && !ent.headerFooter}
+                  onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
+                />
+                <LockNote locked={!!ent && !ent.headerFooter} />
+              </div>
+
+              <div className="space-y-2 rounded-lg border p-3">
+                <Label>Link replace</Label>
+                <Input
+                  placeholder="Replace every link with (e.g. your affiliate link)"
+                  value={form.replace_all_links}
+                  disabled={!!ent && !ent.linkReplace}
+                  onChange={(e) => setForm({ ...form, replace_all_links: e.target.value })}
+                />
+                <Textarea
+                  rows={3}
+                  placeholder={"One per line:  old text => new text\namzn.to/abc => amzn.to/mylink"}
+                  value={form.replace_pairs}
+                  disabled={!!ent && !ent.linkReplace}
+                  onChange={(e) => setForm({ ...form, replace_pairs: e.target.value })}
+                />
+                <LockNote locked={!!ent && !ent.linkReplace} />
               </div>
 
               <div className="space-y-3 rounded-lg border p-3">
@@ -406,6 +504,7 @@ function RulesPage() {
                   </div>
                   <Switch
                     checked={form.run_backfill}
+                    disabled={!!ent && !ent.backfill}
                     onCheckedChange={(v) => setForm({ ...form, run_backfill: v })}
                   />
                 </div>
@@ -476,7 +575,9 @@ function RulesPage() {
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">Active rules</p>
+            <p className="text-xs text-muted-foreground">
+              Active rules{ent && ent.tier !== "admin" ? ` · ${rules.length}/${ent.maxRules} on ${ent.label}` : ""}
+            </p>
             <p className="text-2xl font-semibold text-foreground">{totals.active}</p>
           </CardContent>
         </Card>

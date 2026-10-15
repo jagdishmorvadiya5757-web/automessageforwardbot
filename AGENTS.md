@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Plan entitlements live only in src/lib/plan-limits.ts and are enforced server-side (rule save + worker rules feed via gateRule); UI only shows locks. Why: one place to change limits, cannot be bypassed from the browser.
