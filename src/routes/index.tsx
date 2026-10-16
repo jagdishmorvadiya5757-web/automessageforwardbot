@@ -23,6 +23,7 @@ import {
   Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LegalFooter } from "@/components/LegalPage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -356,6 +357,7 @@ function Landing() {
         <p className="mt-8 text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} ForwardFlow · Telegram automation for teams and creators.
         </p>
+        <LegalFooter />
       </section>
     </div>
   );
