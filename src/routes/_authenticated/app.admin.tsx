@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Copy, Plus, Trash2, Link2, Ban, CheckCircle2, Search, ArrowLeft } from "lucide-react";
 import { AdminHome } from "@/components/admin/AdminHome";
+import { AdminTools } from "@/components/admin/AdminTools";
 
 export const Route = createFileRoute("/_authenticated/app/admin")({
   component: AdminPage,
@@ -143,6 +144,16 @@ function AdminPage() {
 
   if (section === "home") {
     return <AdminHome onOpen={setSection} />;
+  }
+  if (section === "tools") {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => setSection("home")}>
+          <ArrowLeft className="mr-1 h-4 w-4" /> Dashboard
+        </Button>
+        <AdminTools />
+      </div>
+    );
   }
 
   const titles: Record<string, string> = {

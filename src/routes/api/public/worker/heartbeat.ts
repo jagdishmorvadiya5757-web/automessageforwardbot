@@ -36,6 +36,8 @@ export const Route = createFileRoute("/api/public/worker/heartbeat")({
             updated_at: now,
           }, { onConflict: "id" });
           if (error) return new Response(error.message, { status: 500 });
+          const { maybeCleanupLogs } = await import("@/lib/system.server");
+          await maybeCleanupLogs();
         } else if (auth?.userId) {
           const { error } = await supabaseAdmin
             .from("worker_tokens")
