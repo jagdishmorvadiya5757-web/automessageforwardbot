@@ -45,7 +45,7 @@ export const getAdminTools = createServerFn({ method: "GET" })
       maintenance: m,
       cleanup: { ...cleanup, retentionDays: LOG_RETENTION_DAYS },
       announcements: (ann.data ?? []) as Announcement[],
-      audit: (audit.data ?? []) as { id: number; action: string; detail: Record<string, unknown>; created_at: string }[],
+      audit: (audit.data ?? []) as { id: number; action: string; detail: Record<string, string | number | boolean | null>; created_at: string }[],
       setupNeeded: !!(ann.error || audit.error),
     };
   });
