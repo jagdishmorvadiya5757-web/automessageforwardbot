@@ -39,6 +39,7 @@ export function AdminHome({ onOpen }: Props) {
     { id: "plans", title: "Plans", desc: "Price, perks, payment link", icon: CreditCard },
     { id: "keys", title: "License keys", desc: "Keys banao aur dekho", icon: KeyRound },
     { id: "claims", title: "Claim links", desc: "Multi-use promo codes", icon: Link2 },
+    { id: "tools", title: "Broadcast & system", desc: "Sabko message, maintenance, record, log cleanup", icon: Send },
   ];
 
   return (

@@ -114,6 +114,11 @@ export const startPhoneSignIn = createServerFn({ method: "POST" })
         throw new Error("This account has been blocked. Please contact support.");
       }
     }
+    if (userId !== "11111111-1111-4111-8111-111111111111") {
+      const { getMaintenance } = await import("./system.server");
+      const m = await getMaintenance();
+      if (m.enabled) throw new Error(m.message || "ForwardFlow is under maintenance. Please try again shortly.");
+    }
     if (!userId) {
       userId = crypto.randomUUID();
       const name = "+" + digits;

@@ -236,6 +236,13 @@ export const setUserBlocked = createServerFn({ method: "POST" })
         { id: data.userId, is_blocked: data.blocked, blocked_reason: data.blocked ? data.reason ?? null : null } as never,
         { onConflict: "id" },
       );
+    if (!error) {
+      const { logAdminAction } = await import("./system.server");
+      await logAdminAction((context as any).userId, data.blocked ? "user_blocked" : "user_unblocked", {
+        userId: data.userId,
+        reason: data.reason ?? null,
+      });
+    }
     if (error) {
       throw new Error(
         /column/i.test(error.message)

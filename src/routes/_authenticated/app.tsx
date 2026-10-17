@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TrialBanner } from "@/components/TrialBanner";
+import { SystemNotices } from "@/components/SystemNotices";
 
 export const Route = createFileRoute("/_authenticated/app")({
   component: AppLayout,
@@ -108,6 +109,7 @@ function AppLayout() {
         </nav>
       </header>
       <main className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-4 sm:py-8">
+        <SystemNotices />
         <TrialBanner />
         <Outlet />
       </main>
