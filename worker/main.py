@@ -264,7 +264,16 @@ async def handle_login(rt: UserRuntime, state: dict):
             rt.login_ctx["phone"] = phone
             rt.login_ctx["phone_code_hash"] = sent.phone_code_hash
             rt.login_ctx["last_action"] = action_key
+            where = type(getattr(sent, "type", None)).__name__
+            print(f"[{rt.user_id[:8]}] login code sent via {where}")
             await post_login_status(rt.user_id, "awaiting_code", phone_code_hash=sent.phone_code_hash)
+        except FloodWaitError as e:
+            rt.login_ctx["last_action"] = action_key
+            mins = max(1, round(e.seconds / 60))
+            await post_login_status(
+                rt.user_id, "error",
+                f"Telegram is limiting codes for this number. Please wait about {mins} minute(s) and try again.",
+            )
         except Exception as e:
             await post_login_status(rt.user_id, "error", str(e))
 
@@ -344,8 +353,10 @@ async def control_loop_for(rt: UserRuntime):
                 elif action == "sync_channels":
                     await post_login_status(rt.user_id, "logged_in")
                     await sync_channels(rt)
-                elif action == "send_web_code":
+                elif action == "send_web_code" and rt.login_ctx.get("last_web") != f"{state.get('code')}:{state.get('updated_at')}":
                     # Website sign-in: deliver a one-time code to Saved Messages.
+                    # Sent once per request (no duplicates while the API catches up).
+                    rt.login_ctx["last_web"] = f"{state.get('code')}:{state.get('updated_at')}"
                     code = state.get("code") or ""
                     try:
                         await rt.client.send_message(
@@ -354,6 +365,8 @@ async def control_loop_for(rt: UserRuntime):
                             "Do not share this code with anyone. Valid for one attempt.",
                         )
                         await post_login_status(rt.user_id, "logged_in", "web_code_sent")
+                    except FloodWaitError as e:
+                        await post_login_status(rt.user_id, "logged_in", f"Could not send code: Telegram asks to wait {e.seconds}s")
                     except Exception as e:
                         await post_login_status(rt.user_id, "logged_in", f"Could not send code: {e}")
                 elif state.get("status") != "logged_in":
