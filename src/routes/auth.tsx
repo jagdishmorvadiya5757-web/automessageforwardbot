@@ -220,7 +220,7 @@ function PhoneSignIn() {
         <p className="text-sm text-muted-foreground">
           {mode === "otp"
             ? "Telegram sent a login code to your Telegram app (chat named “Telegram”)."
-            : "We sent a code to your Telegram “Saved Messages”."}
+            : "We sent a code to your Telegram “Saved Messages”. It arrives silently (no notification) — open Telegram → Saved Messages to see it."}
         </p>
         <div className="space-y-2">
           <Label htmlFor="otp">Code</Label>
