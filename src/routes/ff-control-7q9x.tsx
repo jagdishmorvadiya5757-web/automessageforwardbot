@@ -36,12 +36,13 @@ function AdminSignIn() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      const session = await login({ data: { email, password } });
+      const session = await login({ data: { email, password, code } });
       saveSessionAndGo(session);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign in failed. Please try again.");
@@ -59,6 +60,10 @@ function AdminSignIn() {
       <div className="space-y-2">
         <Label htmlFor="si-pw">Password</Label>
         <Input id="si-pw" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="si-code">Security code</Label>
+        <Input id="si-code" type="password" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
       </div>
       <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
         {loading ? "Signing in…" : "Sign in"}
